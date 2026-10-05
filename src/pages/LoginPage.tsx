@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BrandMark } from "../components/BrandMark";
 import { useLogin } from "../hooks/auth/useLogin";
-import { getApiErrorMessage } from "../lib/apiError";
+import { getLoginErrorMessage } from "../lib/apiError";
 import { getHomeRouteForRole } from "../lib/roles";
 
 export function LoginPage() {
@@ -32,7 +32,7 @@ export function LoginPage() {
           navigate(getHomeRouteForRole(data.user.role), { replace: true });
         },
         onError: (error) => {
-          toast.error(getApiErrorMessage(error));
+          toast.error(getLoginErrorMessage(error));
         },
       },
     );

@@ -21,6 +21,7 @@ export const queryKeys = {
     detail: (id: string) => ["tickets", id] as const,
     comments: (id: string) => ["tickets", id, "comments"] as const,
     participants: (id: string) => ["tickets", id, "participants"] as const,
+    devices: (id: string) => ["tickets", id, "devices"] as const,
   },
   employees: {
     all: ["employees"] as const,

@@ -7,6 +7,7 @@ export const ENDPOINTS = {
     base: "/api/v1/tickets",
     byId: (id: string) => `/api/v1/tickets/${id}`,
     comments: (id: string) => `/api/v1/tickets/${id}/comments`,
+    devices: (id: string) => `/api/v1/tickets/${id}/devices`,
     assign: (id: string) => `/api/v1/tickets/${id}/assign`,
     transfer: (id: string) => `/api/v1/tickets/${id}/transfer`,
     resolve: (id: string) => `/api/v1/tickets/${id}/resolve`,

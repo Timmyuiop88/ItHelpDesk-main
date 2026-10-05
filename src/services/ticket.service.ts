@@ -1,5 +1,6 @@
 import { apiDelete, apiGet, apiPatch, apiPost } from "../api/config";
 import { ENDPOINTS } from "../api/endpoints";
+import type { TicketDevicesResponse } from "../types/device.types";
 import type {
   AddParticipantPayload,
   AssignTicketPayload,
@@ -33,6 +34,8 @@ export const ticketService = {
     apiPost<Ticket, Record<string, never>>(ENDPOINTS.tickets.resolve(id), {}),
   close: (id: string) =>
     apiPost<Ticket, Record<string, never>>(ENDPOINTS.tickets.close(id), {}),
+  getDevices: (id: string) =>
+    apiGet<TicketDevicesResponse>(ENDPOINTS.tickets.devices(id)),
   getComments: (id: string) =>
     apiGet<TicketComment[]>(ENDPOINTS.tickets.comments(id)),
   addComment: (id: string, payload: CreateCommentPayload) =>

@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -25,7 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { useDevices } from "../../hooks/devices/useDevices";
+import { useTicketDevices } from "../../hooks/tickets/useTicketDevices";
 import { useEndSession } from "../../hooks/remote-sessions/useEndSession";
 import { useRequestSession } from "../../hooks/remote-sessions/useRequestSession";
 import { useSaveSessionNotes } from "../../hooks/remote-sessions/useSaveSessionNotes";
@@ -35,16 +36,17 @@ import {
   updateTechnicianSession,
   type TechnicianSessionState,
 } from "../../hooks/technicianSessionStore";
+import { queryKeys } from "../../lib/queryClient";
 import { formatDuration, useNow } from "../../hooks/useNow";
 import { useTechnicianSession } from "../../hooks/useTechnicianSocket";
-import { getApiErrorMessage } from "../../lib/apiError";
+import { getApiErrorCode, getApiErrorMessage } from "../../lib/apiError";
+import { formatRelative, fullName } from "../../lib/format";
 import { connectToSession, openRustdesk } from "../../lib/remoteConnect";
-import type { Device } from "../../types/device.types";
+import type { TicketDevice } from "../../types/device.types";
 
 interface RemoteSessionPanelProps {
   ticketId: string;
-  defaultDeviceId?: string;
-  disabled?: boolean;
+  unavailableReason?: string;
 }
 
 const STEPS = ["Request", "Employee approval", "Connected"] as const;
@@ -65,8 +67,7 @@ function stepIndex(session: TechnicianSessionState | null): number {
 
 export function RemoteSessionPanel({
   ticketId,
-  defaultDeviceId,
-  disabled = false,
+  unavailableReason,
 }: RemoteSessionPanelProps) {
   const stored = useTechnicianSession();
   const session = stored?.ticketId === ticketId ? stored : null;
@@ -129,7 +130,7 @@ export function RemoteSessionPanel({
             }
           />
         ) : !session ? (
-          <IdleState disabled={disabled} onRequest={() => setPickerOpen(true)} />
+          <IdleState unavailableReason={unavailableReason} onRequest={() => setPickerOpen(true)} />
         ) : session.status === "REQUESTED" ? (
           <WaitingState session={session} />
         ) : session.status === "APPROVED" ? (
@@ -147,7 +148,6 @@ export function RemoteSessionPanel({
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         ticketId={ticketId}
-        defaultDeviceId={defaultDeviceId}
       />
     </section>
   );
@@ -211,16 +211,22 @@ function Timer({ since, prefix }: { since: number; prefix?: string }) {
   );
 }
 
-function IdleState({ disabled, onRequest }: { disabled: boolean; onRequest: () => void }) {
+function IdleState({
+  unavailableReason,
+  onRequest,
+}: {
+  unavailableReason?: string;
+  onRequest: () => void;
+}) {
+  const disabled = !!unavailableReason;
   return (
     <StateBlock
       tone="muted"
       icon={<MonitorUp className="size-5" />}
       title="View the employee's screen"
       description={
-        disabled
-          ? "Remote access isn't available for closed tickets."
-          : "The employee gets a prompt to approve. Once they accept, RustDesk opens automatically."
+        unavailableReason ??
+        "The employee gets a prompt to approve. Once they accept, RustDesk opens automatically."
       }
       actions={
         <Button onClick={onRequest} disabled={disabled}>
@@ -465,28 +471,36 @@ function DevicePickerDialog({
   open,
   onOpenChange,
   ticketId,
-  defaultDeviceId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   ticketId: string;
-  defaultDeviceId?: string;
 }) {
-  const devices = useDevices();
+  const queryClient = useQueryClient();
+  const result = useTicketDevices(ticketId, open);
   const requestSession = useRequestSession();
-  const [selectedId, setSelectedId] = useState("");
+  const [step, setStep] = useState<"select" | "confirm">("select");
+  const [pickedId, setPickedId] = useState<string | null>(null);
 
-  const handleOpenChange = (next: boolean) => {
-    if (next) setSelectedId(defaultDeviceId ?? "");
-    onOpenChange(next);
-  };
-
-  const list = [...(devices.data ?? [])].sort((a, b) => {
-    if (a.id === defaultDeviceId) return -1;
-    if (b.id === defaultDeviceId) return 1;
+  const creator = result.data?.creator;
+  const ownerName = fullName(creator) || "the employee";
+  const list = [...(result.data?.devices ?? [])].sort((a, b) => {
+    if (a.remoteReady !== b.remoteReady) return Number(b.remoteReady) - Number(a.remoteReady);
+    if (a.attachedToTicket !== b.attachedToTicket) return Number(b.attachedToTicket) - Number(a.attachedToTicket);
     return Number(b.status === "ONLINE") - Number(a.status === "ONLINE");
   });
-  const selected = list.find((device) => device.id === selectedId);
+
+  // Pre-select the device the employee chose when creating the ticket.
+  const fallbackId = list.find((d) => d.attachedToTicket && d.remoteReady)?.id ?? null;
+  const selected = list.find((d) => d.id === (pickedId ?? fallbackId) && d.remoteReady);
+
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      setStep("select");
+      setPickedId(null);
+    }
+    onOpenChange(next);
+  };
 
   const submit = () => {
     if (!selected) return;
@@ -503,10 +517,20 @@ function DevicePickerDialog({
           });
           onOpenChange(false);
           toast.success("Request sent", {
-            description: `Waiting for approval on ${selected.hostname || "the device"}.`,
+            description: `Waiting for ${ownerName} to approve on ${selected.hostname || "the device"}.`,
           });
         },
-        onError: (error) => toast.error(getApiErrorMessage(error)),
+        onError: (error) => {
+          if (getApiErrorCode(error) === "DEVICE_NOT_REMOTE_READY") {
+            toast.error("That device has no RustDesk ID yet", {
+              description: "Ask the employee to add it on their Device page.",
+            });
+            setStep("select");
+            void queryClient.invalidateQueries({ queryKey: queryKeys.tickets.devices(ticketId) });
+            return;
+          }
+          toast.error(getApiErrorMessage(error));
+        },
       },
     );
   };
@@ -514,49 +538,108 @@ function DevicePickerDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="gap-5 p-6 sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Request remote access</DialogTitle>
-          <DialogDescription>
-            Choose the device to connect to. The employee must approve before you can see their screen.
-          </DialogDescription>
-        </DialogHeader>
+        {step === "select" ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>Request remote access</DialogTitle>
+              <DialogDescription>
+                {creator
+                  ? `Choose which of ${ownerName}'s devices to connect to.`
+                  : "Choose which of the ticket creator's devices to connect to."}
+              </DialogDescription>
+            </DialogHeader>
 
-        <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1" role="radiogroup">
-          {devices.isLoading && (
-            <p className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /> Loading devices…
-            </p>
-          )}
-          {!devices.isLoading && list.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">No devices registered yet.</p>
-          )}
-          {list.map((device) => (
-            <DeviceOption
-              key={device.id}
-              device={device}
-              linked={device.id === defaultDeviceId}
-              selected={device.id === selectedId}
-              onSelect={() => setSelectedId(device.id)}
-            />
-          ))}
-        </div>
+            <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1" role="radiogroup">
+              {result.isLoading && (
+                <p className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" /> Loading devices…
+                </p>
+              )}
+              {result.isError && (
+                <p className="py-6 text-center text-sm text-destructive">
+                  {getApiErrorMessage(result.error)}
+                </p>
+              )}
+              {result.data && list.length === 0 && (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  {ownerName} hasn't linked any devices yet.
+                </p>
+              )}
+              {list.map((device) => (
+                <DeviceOption
+                  key={device.id}
+                  device={device}
+                  selected={device.id === selected?.id}
+                  onSelect={() => setPickedId(device.id)}
+                />
+              ))}
+            </div>
 
-        {selected && !selected.rustdeskId && (
-          <p className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            This device hasn't reported a RustDesk ID, so the connection may fail. Ask the employee to open the Device page in the app.
-          </p>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => setStep("confirm")} disabled={!selected}>
+                Continue
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          selected && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Confirm remote access request</DialogTitle>
+                <DialogDescription>
+                  Check this is the right computer before asking {ownerName} for access.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex items-center gap-4 rounded-xl border border-border bg-muted/40 p-4">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-background ring-1 ring-border">
+                  <MonitorSmartphone className="size-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{selected.hostname || selected.id}</p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {ownerName}
+                    {selected.operatingSystem ? ` · ${selected.operatingSystem}` : ""}
+                  </p>
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span
+                      className={`size-2 rounded-full ${selected.status === "ONLINE" ? "bg-emerald-500" : "bg-muted-foreground/40"}`}
+                    />
+                    {selected.status === "ONLINE"
+                      ? "Online"
+                      : selected.lastSeenAt
+                        ? `Offline · last seen ${formatRelative(selected.lastSeenAt)}`
+                        : "Offline"}
+                  </p>
+                </div>
+              </div>
+
+              {selected.status !== "ONLINE" && (
+                <p className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                  This device is offline, so {ownerName} won't see the request until it's back online.
+                </p>
+              )}
+
+              <p className="text-sm text-muted-foreground">
+                {ownerName} will get a prompt to allow or decline. You can only connect if they approve.
+              </p>
+
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setStep("select")} disabled={requestSession.isPending}>
+                  Back
+                </Button>
+                <Button onClick={submit} disabled={requestSession.isPending}>
+                  {requestSession.isPending ? <Loader2 className="animate-spin" /> : <MonitorUp />}
+                  Send request
+                </Button>
+              </DialogFooter>
+            </>
+          )
         )}
-
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={submit} disabled={!selected || requestSession.isPending}>
-            {requestSession.isPending ? <Loader2 className="animate-spin" /> : <MonitorUp />}
-            Send request
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -564,27 +647,28 @@ function DevicePickerDialog({
 
 function DeviceOption({
   device,
-  linked,
   selected,
   onSelect,
 }: {
-  device: Device;
-  linked: boolean;
+  device: TicketDevice;
   selected: boolean;
   onSelect: () => void;
 }) {
   const online = device.status === "ONLINE";
+  const ready = device.remoteReady;
 
   return (
     <button
       type="button"
       role="radio"
       aria-checked={selected}
+      aria-disabled={!ready}
+      disabled={!ready}
       onClick={onSelect}
-      className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all ${
+      className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-55 ${
         selected
           ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-          : "border-border hover:border-primary/40 hover:bg-muted/50"
+          : "border-border enabled:hover:border-primary/40 enabled:hover:bg-muted/50"
       }`}
     >
       <div className="relative flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
@@ -598,16 +682,21 @@ function DeviceOption({
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2 truncate text-sm font-medium">
           {device.hostname || device.id}
-          {linked && (
+          {device.attachedToTicket && (
             <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
               On ticket
             </span>
           )}
         </p>
         <p className="truncate text-xs text-muted-foreground">
-          {online ? "Online" : "Offline"}
+          {!ready
+            ? "No RustDesk ID yet — can't connect"
+            : online
+              ? "Online"
+              : device.lastSeenAt
+                ? `Offline · last seen ${formatRelative(device.lastSeenAt)}`
+                : "Offline"}
           {device.operatingSystem ? ` · ${device.operatingSystem}` : ""}
-          {!device.rustdeskId ? " · No RustDesk ID" : ""}
         </p>
       </div>
       <span

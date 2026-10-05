@@ -158,8 +158,13 @@ export function TicketDetailPage() {
 
           <RemoteSessionPanel
             ticketId={id}
-            defaultDeviceId={ticket.data.deviceId ?? undefined}
-            disabled={status === "CLOSED"}
+            unavailableReason={
+              status === "CLOSED" || status === "RESOLVED"
+                ? "Remote access isn't available once a ticket is resolved or closed."
+                : !assignedToMe
+                  ? "Assign this ticket to yourself to request remote access."
+                  : undefined
+            }
           />
 
           <ParticipantsPanel
