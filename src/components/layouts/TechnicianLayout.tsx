@@ -56,13 +56,27 @@ function ShellFrame() {
             <BrandMark subtitle="IT Support · Technician" collapsed={collapsed} />
             {!collapsed && (
               <Button variant="ghost" size="icon" onClick={() => setCollapsed(true)} className="shrink-0 text-muted-foreground">
-                <PanelLeftClose className="size-4" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => setCollapsed(true)} className="shrink-0 text-muted-foreground">
+                      <PanelLeftClose className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Collapse sidebar</TooltipContent>
+                </Tooltip>
               </Button>
             )}
           </div>
           {collapsed && (
             <Button variant="ghost" size="icon" onClick={() => setCollapsed(false)} className="mb-6 shrink-0 text-muted-foreground">
-              <PanelLeftOpen className="size-4" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={() => setCollapsed(false)} className="mb-6 shrink-0 text-muted-foreground">
+                    <PanelLeftOpen className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Expand sidebar</TooltipContent>
+              </Tooltip>
             </Button>
           )}
           <nav className={`flex w-full flex-1 flex-col gap-1 ${collapsed ? "items-center" : ""}`}>
