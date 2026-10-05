@@ -8,21 +8,35 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { RefreshButton } from "../../components/common/RefreshButton";
 import { DeviceIssueNotice } from "../../components/devices/DeviceIssueNotice";
 import { DeviceStatusBadge } from "../../components/devices/DeviceStatusBadge";
 import { MyDevicesCard } from "../../components/devices/MyDevicesCard";
 import { useDevices } from "../../hooks/devices/useDevices";
+import { useMyDevices } from "../../hooks/devices/useMyDevices";
 import { formatRelative, fullName } from "../../lib/format";
 
 export function DevicesPage() {
   const devices = useDevices();
+  const myDevices = useMyDevices();
   // The technician's own devices are in "My devices"; this list is for the
   // devices of people whose tickets they're working on.
   const ticketDevices =
     devices.data?.filter((device) => device.access !== "OWNED") ?? [];
 
+  const handleRefresh = async () => {
+    await Promise.all([
+      devices.refetch(),
+      myDevices.refetch(),
+    ]);
+  };
+
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Devices</h1>
+        <RefreshButton onRefresh={handleRefresh} iconOnly />
+      </div>
       <DeviceIssueNotice />
       <MyDevicesCard />
 
@@ -72,7 +86,7 @@ export function DevicesPage() {
                         to={`/technician/tickets/${ticket.id}`}
                         title={ticket.title}
                       >
-                        <Badge variant="outline">
+                        <Badge variant="outline" className="hover:bg-muted transition-colors">
                           Ticket {ticket.ticketNumber ? `#${ticket.ticketNumber}` : ""}
                           {ticket.ticketNumber ? "" : ticket.title}
                         </Badge>

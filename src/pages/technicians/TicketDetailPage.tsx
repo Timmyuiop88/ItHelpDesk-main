@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { RefreshButton } from "../../components/common/RefreshButton";
 import { RemoteSessionPanel } from "../../components/remote/RemoteSessionPanel";
 import { CommentThread } from "../../components/tickets/CommentThread";
 import { ParticipantsPanel } from "../../components/tickets/ParticipantsPanel";
@@ -13,6 +14,8 @@ import { useCloseTicket } from "../../hooks/tickets/useCloseTicket";
 import { useAssignTicket } from "../../hooks/tickets/useAssignTicket";
 import { useResolveTicket } from "../../hooks/tickets/useResolveTicket";
 import { useTicket } from "../../hooks/tickets/useTicket";
+import { useTicketComments } from "../../hooks/tickets/useTicketComments";
+import { useTicketParticipants } from "../../hooks/tickets/useTicketParticipants";
 import { useUpdateTicket } from "../../hooks/tickets/useUpdateTicket";
 import { useCurrentTechnicianId } from "../../hooks/technicians/useCurrentTechnicianId";
 import { getApiErrorMessage } from "../../lib/apiError";
@@ -24,6 +27,8 @@ export function TicketDetailPage() {
   const { id = "" } = useParams();
   const me = useMe();
   const ticket = useTicket(id);
+  const comments = useTicketComments(id);
+  const participants = useTicketParticipants(id);
   const assignTicket = useAssignTicket();
   const updateTicket = useUpdateTicket();
   const resolveTicket = useResolveTicket();
@@ -71,11 +76,22 @@ export function TicketDetailPage() {
     );
   };
 
+  const handleRefresh = async () => {
+    await Promise.all([
+      ticket.refetch(),
+      comments.refetch(),
+      participants.refetch(),
+    ]);
+  };
+
   return (
     <div className="flex flex-col gap-6">
-      <Link to="/technician/tickets" className="text-sm text-muted-foreground">
-        Back to tickets
-      </Link>
+      <Button className="flex items-center justify-between">
+        <Link to="/technician/tickets" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          &larr; Back to tickets
+        </Link>
+        <RefreshButton onRefresh={handleRefresh} iconOnly />
+      </Button>
       {ticket.isLoading && <p>Loading ticket...</p>}
       {ticket.isError && (
         <p className="text-destructive">Failed to load ticket.</p>

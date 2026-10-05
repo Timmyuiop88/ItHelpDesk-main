@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "../../components/common/RefreshButton";
 import { EmployeeRemoteAccessCard } from "../../components/remote/EmployeeRemoteAccessCard";
 import { CommentThread } from "../../components/tickets/CommentThread";
 import { ParticipantsPanel } from "../../components/tickets/ParticipantsPanel";
@@ -9,6 +10,8 @@ import { TicketMeta } from "../../components/tickets/TicketMeta";
 import { useMe } from "../../hooks/auth/useMe";
 import { useCloseTicket } from "../../hooks/tickets/useCloseTicket";
 import { useTicket } from "../../hooks/tickets/useTicket";
+import { useTicketComments } from "../../hooks/tickets/useTicketComments";
+import { useTicketParticipants } from "../../hooks/tickets/useTicketParticipants";
 import { getApiErrorMessage } from "../../lib/apiError";
 
 export function TicketDetailPage() {
@@ -16,6 +19,8 @@ export function TicketDetailPage() {
   const navigate = useNavigate();
   const me = useMe();
   const ticket = useTicket(id);
+  const comments = useTicketComments(id);
+  const participants = useTicketParticipants(id);
   const closeTicket = useCloseTicket();
 
   const ownerUserId =
@@ -33,11 +38,22 @@ export function TicketDetailPage() {
     });
   };
 
+  const handleRefresh = async () => {
+    await Promise.all([
+      ticket.refetch(),
+      comments.refetch(),
+      participants.refetch(),
+    ]);
+  };
+
   return (
     <div className="flex flex-col gap-6">
-      <Link to="/employee/tickets" className="text-sm text-muted-foreground">
-        Back to tickets
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link to="/employee/tickets" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          &larr; Back to tickets
+        </Link>
+        <RefreshButton onRefresh={handleRefresh} iconOnly />
+      </div>
       {ticket.isLoading && <p>Loading ticket...</p>}
       {ticket.isError && (
         <p className="text-destructive">Failed to load ticket.</p>

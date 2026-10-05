@@ -4,12 +4,14 @@ interface BrandMarkProps {
   subtitle?: string;
   size?: "sm" | "lg";
   className?: string;
+  collapsed?: boolean;
 }
 
 export function BrandMark({
   subtitle = "IT Support",
   size = "sm",
   className = "",
+  collapsed = false,
 }: BrandMarkProps) {
   const logoClass = size === "lg" ? "h-20 w-20" : "h-8 w-8";
 
@@ -20,26 +22,28 @@ export function BrandMark({
         alt="ECOWAS seal"
         className={`${logoClass} shrink-0 object-contain`}
       />
-      <div className="min-w-0">
-        <p
-          className={
-            size === "lg"
-              ? "text-2xl font-bold tracking-tight text-primary"
-              : "text-sm font-bold tracking-tight text-primary"
-          }
-        >
-          ECOWAS
-        </p>
-        <p
-          className={
-            size === "lg"
-              ? "text-sm text-muted-foreground"
-              : "text-xs text-muted-foreground"
-          }
-        >
-          {subtitle}
-        </p>
-      </div>
+      {!collapsed && (
+        <div className="min-w-0">
+          <p
+            className={
+              size === "lg"
+                ? "text-2xl font-bold tracking-tight text-primary"
+                : "text-sm font-bold tracking-tight text-primary"
+            }
+          >
+            ECOWAS
+          </p>
+          <p
+            className={
+              size === "lg"
+                ? "text-sm text-muted-foreground"
+                : "text-xs text-muted-foreground"
+            }
+          >
+            {subtitle}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

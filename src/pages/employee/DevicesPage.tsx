@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RefreshButton } from "../../components/common/RefreshButton";
 import {
   clearManualRustdeskId,
   getManualRustdeskId,
@@ -20,14 +21,24 @@ import { useDeviceAgentState } from "../../components/DeviceAgentContext";
 import { DeviceIssueNotice } from "../../components/devices/DeviceIssueNotice";
 import { DeviceStatusBadge } from "../../components/devices/DeviceStatusBadge";
 import { MyDevicesCard } from "../../components/devices/MyDevicesCard";
+import { useMyDevices } from "../../hooks/devices/useMyDevices";
 
 export function DevicesPage() {
   const agent = useDeviceAgentState();
   const device = agent.device;
+  const myDevices = useMyDevices();
+
+  const handleRefresh = async () => {
+    await myDevices.refetch();
+    agent.reregister();
+  };
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">This device</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">This device</h1>
+        <RefreshButton onRefresh={handleRefresh} iconOnly />
+      </div>
       {agent.isRegistering && <p className="text-sm">Registering device...</p>}
       <DeviceIssueNotice />
       {device && (
