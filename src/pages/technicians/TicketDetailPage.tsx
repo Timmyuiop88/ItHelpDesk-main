@@ -86,12 +86,12 @@ export function TicketDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Button className="flex items-center justify-between">
+      <div className="flex items-center justify-between">
         <Link to="/technician/tickets" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
           &larr; Back to tickets
         </Link>
         <RefreshButton onRefresh={handleRefresh} iconOnly />
-      </Button>
+      </div>
       {ticket.isLoading && <p>Loading ticket...</p>}
       {ticket.isError && (
         <p className="text-destructive">Failed to load ticket.</p>
