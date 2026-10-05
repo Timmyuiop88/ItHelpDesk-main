@@ -28,7 +28,7 @@ function ShellFrame() {
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="flex w-56 flex-col border-r border-border bg-sidebar p-4">
+      <aside className="flex w-56 flex-col border-r border-border bg-sidebar p-4 max-h-screen overflow-y-auto sticky top-0">
         <BrandMark subtitle="IT Support · Technician" className="mb-6" />
         <nav className="flex flex-1 flex-col gap-1">
           {links.map((link) => (
