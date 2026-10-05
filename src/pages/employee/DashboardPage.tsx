@@ -18,7 +18,7 @@ export function DashboardPage() {
   const tickets = useTickets();
   const agent = useDeviceAgentState();
   const openCount =
-    tickets.data?.filter((ticket) => ticket.status === "OPEN").length ?? 0;
+    tickets.data?.filter((ticket) => ticket.status === "OPEN" || ticket.status === "IN_PROGRESS"  || ticket.status === "WAITING_FOR_EMPLOYEE").length ?? 0;
 
   return (
     <div className="flex flex-col gap-6">
