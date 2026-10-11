@@ -4,27 +4,42 @@ import {
   initTokenStore,
   registerUnauthorizedHandler,
 } from "../api/tokenStore";
+import { initServerStore, getServerUrl } from "../api/serverStore";
 import { SocketProvider } from "./SocketProvider";
+import { ServerSetupPage } from "../pages/ServerSetupPage";
 
 export function AuthSetup({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
+  const [hasServer, setHasServer] = useState<boolean | null>(null);
 
   useEffect(() => {
     registerUnauthorizedHandler(() => {
       navigate("/login", { replace: true });
     });
 
-    void initTokenStore().then(() => {
+    void Promise.all([initTokenStore(), initServerStore()]).then(async () => {
+      const config = await getServerUrl();
+      setHasServer(config !== null);
       setReady(true);
     });
   }, [navigate]);
 
   if (!ready) {
     return (
-      <main className="container">
-        <p>Loading...</p>
+      <main className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading…</p>
       </main>
+    );
+  }
+
+  if (!hasServer) {
+    return (
+      <ServerSetupPage
+        onConfigured={() => {
+          setHasServer(true);
+        }}
+      />
     );
   }
 

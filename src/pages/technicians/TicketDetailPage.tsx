@@ -1,200 +1,80 @@
-import { Link, useParams } from "react-router-dom";
-import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { useNavigate, useParams } from "react-router-dom";
 import { RefreshButton } from "../../components/common/RefreshButton";
-import { RemoteSessionPanel } from "../../components/remote/RemoteSessionPanel";
-import { CommentThread } from "../../components/tickets/CommentThread";
-import { ParticipantsPanel } from "../../components/tickets/ParticipantsPanel";
+import { CommentFeed } from "../../components/tickets/CommentFeed";
+import { TicketSidebar } from "../../components/tickets/TicketSidebar";
 import { TicketMeta } from "../../components/tickets/TicketMeta";
-import { TransferTicketDialog } from "../../components/tickets/TransferTicketDialog";
 import { useMe } from "../../hooks/auth/useMe";
-import { useCloseTicket } from "../../hooks/tickets/useCloseTicket";
-import { useAssignTicket } from "../../hooks/tickets/useAssignTicket";
-import { useResolveTicket } from "../../hooks/tickets/useResolveTicket";
 import { useTicket } from "../../hooks/tickets/useTicket";
 import { useTicketComments } from "../../hooks/tickets/useTicketComments";
 import { useTicketParticipants } from "../../hooks/tickets/useTicketParticipants";
-import { useUpdateTicket } from "../../hooks/tickets/useUpdateTicket";
-import { useCurrentTechnicianId } from "../../hooks/technicians/useCurrentTechnicianId";
-import { getApiErrorMessage } from "../../lib/apiError";
-import { getAssigneeId } from "../../lib/tickets";
-
-const PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
 
 export function TicketDetailPage() {
   const { id = "" } = useParams();
+  const navigate = useNavigate();
   const me = useMe();
   const ticket = useTicket(id);
   const comments = useTicketComments(id);
   const participants = useTicketParticipants(id);
-  const assignTicket = useAssignTicket();
-  const updateTicket = useUpdateTicket();
-  const resolveTicket = useResolveTicket();
-  const closeTicket = useCloseTicket();
-  const technicianId = useCurrentTechnicianId();
 
-  const status = ticket.data?.status;
-  const assigneeId = ticket.data ? getAssigneeId(ticket.data) : null;
-  const unassigned = !assigneeId && status === "OPEN";
-  const assignedToMe = !!assigneeId && assigneeId === technicianId;
-  const finished = status === "RESOLVED" || status === "CLOSED";
-  const canWork =
-    status === "IN_PROGRESS" || status === "WAITING_FOR_EMPLOYEE";
-
-  const handleAssign = () => {
-    if (!technicianId) {
-      toast.error("Could not match your technician profile.");
-      return;
-    }
-    assignTicket.mutate(
-      { id, payload: { technicianId } },
-      {
-        onSuccess: () => toast.success("Ticket assigned to you"),
-        onError: (error) => toast.error(getApiErrorMessage(error)),
-      },
-    );
-  };
-
-  const handleWaiting = () => {
-    updateTicket.mutate(
-      { id, payload: { status: "WAITING_FOR_EMPLOYEE" } },
-      {
-        onSuccess: () => toast.success("Waiting for employee"),
-        onError: (error) => toast.error(getApiErrorMessage(error)),
-      },
-    );
-  };
-
-  const handlePriority = (priority: string) => {
-    updateTicket.mutate(
-      { id, payload: { priority } },
-      {
-        onError: (error) => toast.error(getApiErrorMessage(error)),
-      },
-    );
-  };
+  const isClosed = ticket.data?.status === "CLOSED";
 
   const handleRefresh = async () => {
-    await Promise.all([
-      ticket.refetch(),
-      comments.refetch(),
-      participants.refetch(),
-    ]);
+    await Promise.all([ticket.refetch(), comments.refetch(), participants.refetch()]);
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <Link to="/technician/tickets" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Top bar */}
+      <div className="flex shrink-0 items-center justify-between pb-4">
+        <button
+          type="button"
+          onClick={() => navigate("/technician/tickets")}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
           &larr; Back to tickets
-        </Link>
+        </button>
         <RefreshButton onRefresh={handleRefresh} iconOnly />
       </div>
-      {ticket.isLoading && <p>Loading ticket...</p>}
-      {ticket.isError && (
-        <p className="text-destructive">Failed to load ticket.</p>
+
+      {ticket.isLoading && (
+        <p className="text-sm text-muted-foreground">Loading ticket…</p>
       )}
+      {ticket.isError && (
+        <p className="text-sm text-destructive">Failed to load ticket.</p>
+      )}
+
       {ticket.data && (
-        <>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold">{ticket.data.title}</h1>
-              <TicketMeta ticket={ticket.data} showRequester className="mt-1" />
-              <p className="mt-2 text-sm text-muted-foreground">
-                {ticket.data.description}
-              </p>
+        <div className="flex min-h-0 flex-1 gap-4 overflow-hidden lg:gap-6">
+          {/* ── Left column: header + chat ── */}
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            {/* Ticket header */}
+            <div className="shrink-0 pb-3">
+              <h1 className="text-xl font-semibold leading-tight">{ticket.data.title}</h1>
+              <TicketMeta
+                ticket={ticket.data}
+                showRequester
+                className="mt-1"
+              />
+              {ticket.data.description && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {ticket.data.description}
+                </p>
+              )}
             </div>
-            <Badge>{ticket.data.status}</Badge>
+
+            {/* Chat feed fills remaining space */}
+            <CommentFeed ticketId={id} isClosed={isClosed} />
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="priority">Priority</Label>
-            <select
-              id="priority"
-              className="h-8 w-40 rounded-lg border border-input bg-background px-2 text-sm"
-              value={ticket.data.priority}
-              onChange={(event) => handlePriority(event.currentTarget.value)}
-            >
-              {PRIORITIES.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {unassigned && (
-              <Button
-                onClick={handleAssign}
-                disabled={assignTicket.isPending || !technicianId}
-              >
-                Assign to me
-              </Button>
-            )}
-            {assignedToMe && !finished && (
-              <TransferTicketDialog ticketId={id} currentTechnicianId={technicianId} />
-            )}
-            {status === "IN_PROGRESS" && (
-              <Button variant="outline" onClick={handleWaiting}>
-                Waiting for employee
-              </Button>
-            )}
-            {canWork && (
-              <Button
-                variant="outline"
-                disabled={resolveTicket.isPending}
-                onClick={() =>
-                  resolveTicket.mutate(id, {
-                    onSuccess: () => toast.success("Ticket resolved"),
-                    onError: (error) => toast.error(getApiErrorMessage(error)),
-                  })
-                }
-              >
-                Resolve
-              </Button>
-            )}
-            {status !== "CLOSED" && (
-              <Button
-                variant="outline"
-                disabled={closeTicket.isPending}
-                onClick={() =>
-                  closeTicket.mutate(id, {
-                    onSuccess: () => toast.success("Ticket closed"),
-                    onError: (error) => toast.error(getApiErrorMessage(error)),
-                  })
-                }
-              >
-                Close
-              </Button>
-            )}
-          </div>
-
-          <RemoteSessionPanel
-            ticketId={id}
-            unavailableReason={
-              status === "CLOSED" || status === "RESOLVED"
-                ? "Remote access isn't available once a ticket is resolved or closed."
-                : !assignedToMe
-                  ? "Assign this ticket to yourself to request remote access."
-                  : undefined
-            }
-          />
-
-          <ParticipantsPanel
+          {/* ── Right sidebar ── */}
+          <TicketSidebar
+            ticket={ticket.data}
             ticketId={id}
             currentUserId={me.data?.id}
-            canManage={assignedToMe && status !== "CLOSED"}
+            role="technician"
+            onLeft={() => navigate("/technician/tickets", { replace: true })}
           />
-
-          <CommentThread
-            ticketId={id}
-            currentUserId={me.data?.id}
-            disabled={status === "CLOSED"}
-          />
-        </>
+        </div>
       )}
     </div>
   );

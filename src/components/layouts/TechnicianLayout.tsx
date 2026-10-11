@@ -104,7 +104,7 @@ function ShellFrame() {
             )}
           </div>
         </aside>
-        <main className="flex-1 h-screen overflow-y-auto min-w-0 p-6 md:p-8 flex flex-col">
+        <main className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden p-6 md:p-8">
           <Outlet />
         </main>
       </div>

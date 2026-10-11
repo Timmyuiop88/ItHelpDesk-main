@@ -31,7 +31,7 @@ export function TicketsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Tickets</h1>
         <RefreshButton onRefresh={async () => { await tickets.refetch(); }} iconOnly />

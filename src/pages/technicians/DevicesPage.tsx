@@ -32,7 +32,7 @@ export function DevicesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Devices</h1>
         <RefreshButton onRefresh={handleRefresh} iconOnly />

@@ -27,9 +27,13 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setSocket(connectSocket(token));
+    let cancelled = false;
+    void connectSocket(token).then((s) => {
+      if (!cancelled) setSocket(s);
+    });
 
     return () => {
+      cancelled = true;
       disconnectSocket();
       setSocket(null);
     };

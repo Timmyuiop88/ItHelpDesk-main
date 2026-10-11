@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useDepartments } from "../../hooks/departments/useDepartments";
-import { useEmployees } from "../../hooks/employees/useEmployees";
+// import { useEmployees } from "../../hooks/employees/useEmployees";
 import { useTechnicians } from "../../hooks/technicians/useTechnicians";
 import { useAddParticipant } from "../../hooks/tickets/useAddParticipant";
 import { useRemoveParticipant } from "../../hooks/tickets/useRemoveParticipant";
@@ -147,25 +147,27 @@ function AddParticipantDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [departmentId, setDepartmentId] = useState("");
-  const [kind, setKind] = useState<"employees" | "technicians">("employees");
+  // Only technicians can be added for now; employee selection is disabled.
+  // const [kind, setKind] = useState<"employees" | "technicians">("employees");
   const [selectedUserId, setSelectedUserId] = useState("");
   const departments = useDepartments({ enabled: open });
   const listEnabled = open && !!departmentId;
-  const employees = useEmployees(departmentId, {
-    enabled: listEnabled && kind === "employees",
-  });
+  // const employees = useEmployees(departmentId, {
+  //   enabled: listEnabled && kind === "employees",
+  // });
   const technicians = useTechnicians(departmentId, {
-    enabled: listEnabled && kind === "technicians",
+    enabled: listEnabled,
   });
   const add = useAddParticipant();
 
-  const source = kind === "employees" ? employees : technicians;
+  // const source = kind === "employees" ? employees : technicians;
+  const source = technicians;
   const people: PersonOption[] = (source.data ?? [])
     .map((person) => ({
       userId: person.user?.id ?? person.userId ?? "",
       name: fullName(person.user) || person.employeeNumber || "Unnamed",
       detail: [
-        "jobTitle" in person ? person.jobTitle : null,
+        // "jobTitle" in person ? person.jobTitle : null,
         person.user?.email,
       ]
         .filter(Boolean)
@@ -204,13 +206,13 @@ function AddParticipantDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add someone to this ticket</DialogTitle>
+          <DialogTitle>Add a technician to this ticket</DialogTitle>
           <DialogDescription>
             They'll be able to view the ticket and comment on it, but not close it.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <div className="flex flex-col gap-2">
             <Label htmlFor="participant-department">Department</Label>
             <select
@@ -232,7 +234,7 @@ function AddParticipantDialog({
               ))}
             </select>
           </div>
-          <div className="flex flex-col gap-2">
+          {/* <div className="flex flex-col gap-2">
             <Label htmlFor="participant-kind">Role</Label>
             <select
               id="participant-kind"
@@ -246,13 +248,13 @@ function AddParticipantDialog({
               <option value="employees">Employees</option>
               <option value="technicians">Technicians</option>
             </select>
-          </div>
+          </div> */}
         </div>
 
         <div className="flex max-h-64 flex-col gap-2 overflow-y-auto pr-1" role="radiogroup">
           {!departmentId && (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              Pick a department to see its people.
+              Pick a department to see its technicians.
             </p>
           )}
           {departmentId && source.isLoading && (
@@ -265,7 +267,7 @@ function AddParticipantDialog({
           )}
           {departmentId && source.isSuccess && people.length === 0 && (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              No one else to add from this department.
+              No other technicians to add from this department.
             </p>
           )}
           {people.map((person) => {

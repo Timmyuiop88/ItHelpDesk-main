@@ -4,19 +4,29 @@ import {
   getToken,
   triggerUnauthorizedHandler,
 } from "./tokenStore";
+import { buildBaseUrl, getServerUrl } from "./serverStore";
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  // baseURL is set lazily on each request via the interceptor below,
+  // so it picks up the runtime server URL instead of a build-time env var.
   headers: {
     "Content-Type": "application/json",
   },
 });
 
 apiClient.interceptors.request.use(async (config) => {
+  // Attach auth token
   const token = await getToken();
-
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  // Attach base URL from persistent server config (falls back to env var)
+  if (!config.baseURL) {
+    const serverConfig = await getServerUrl();
+    config.baseURL = serverConfig
+      ? buildBaseUrl(serverConfig)
+      : import.meta.env.VITE_API_BASE_URL;
   }
 
   return config;
