@@ -34,7 +34,7 @@ export function TicketMeta({
     if (assignee) {
       parts.push(`assigned to ${assignee}`);
     } else if (!getAssigneeId(ticket) && ticket.status === "OPEN") {
-      parts.push("unassigned");
+      parts.push("Awaiting Technician");
     }
   }
   if (ticket.createdAt) {

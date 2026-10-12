@@ -167,14 +167,14 @@ export function InboxTicketList({
                 {assignedToMe && (
                   <Badge
                     variant="outline"
-                    className="h-4 border-primary/30 bg-primary/10 px-1.5 text-[9px] text-primary"
+                    className="h-4 border-primary/30 bg-blue-50 px-1.5 text-[9px] text-blue-700"
                   >
                     Assigned to you
                   </Badge>
                 )}
                 {!assigneeId && ticket.status === "OPEN" && (
                   <Badge variant="secondary" className="h-4 px-1.5 text-[9px]">
-                    Unassigned
+                    Awaiting Technician
                   </Badge>
                 )}
               </div>
