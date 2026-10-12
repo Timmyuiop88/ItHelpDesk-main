@@ -8,4 +8,11 @@ export interface Technician {
   employeeNumber?: string;
   departmentId?: string | null;
   department?: DepartmentRef | null;
+  available?: boolean;
+  awayUntil?: string | null;
+}
+
+export interface TechnicianAvailabilityPayload {
+  available: boolean;
+  awayUntil?: string | null;
 }

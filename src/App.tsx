@@ -16,6 +16,7 @@ import { DevicesPage as TechnicianDevicesPage } from "./pages/technicians/Device
 import { TicketDetailPage as TechnicianTicketDetailPage } from "./pages/technicians/TicketDetailPage";
 import { TicketsPage as TechnicianTicketsPage } from "./pages/technicians/TicketsPage";
 import { UnauthorizedPage } from "./pages/UnauthorizedPage";
+import { ChatPage } from "./pages/shared/ChatPage";
 
 function LegacyTicketDetailRedirect() {
   const { id = "" } = useParams();
@@ -68,6 +69,7 @@ function App() {
             <Route path="tickets" element={<EmployeeTicketsPage />} />
             <Route path="tickets/:id" element={<EmployeeTicketDetailPage />} />
             <Route path="device" element={<EmployeeDevicesPage />} />
+            <Route path="chat" element={<ChatPage />} />
           </Route>
 
           <Route
@@ -84,6 +86,7 @@ function App() {
             <Route path="tickets" element={<TechnicianTicketsPage />} />
             <Route path="tickets/:id" element={<TechnicianTicketDetailPage />} />
             <Route path="devices" element={<TechnicianDevicesPage />} />
+            <Route path="chat" element={<ChatPage />} />
           </Route>
 
           {/* Legacy flat routes — redirect during transition */}

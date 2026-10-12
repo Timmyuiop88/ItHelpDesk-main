@@ -1,19 +1,21 @@
 import { Send } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useMe } from "../../hooks/auth/useMe";
 import { useAddComment } from "../../hooks/tickets/useAddComment";
 import { useTicketComments } from "../../hooks/tickets/useTicketComments";
-import { getApiErrorMessage } from "../../lib/apiError";
+import { toastApiError } from "../../lib/apiError";
 import { fullName } from "../../lib/format";
 import { getCommentAuthor } from "../../lib/tickets";
-import type { TicketComment } from "../../types/ticket.types";
+import type { CommentVisibility, TicketComment } from "../../types/ticket.types";
 
 interface CommentFeedProps {
   ticketId: string;
   isClosed?: boolean;
+  role: "employee" | "technician";
 }
 
 interface CurrentIdentity {
@@ -41,22 +43,33 @@ function formatTime(iso?: string): string {
     : `${date.toLocaleDateString(undefined, { day: "numeric", month: "short" })}, ${time}`;
 }
 
-// `/auth/me` may expose the user id as `id`, `sub` or `userId`, and a comment
-// may reference its author by `authorId`, `userId` or a nested object.
+function displayAuthorName(comment: TicketComment): string {
+  const author = getCommentAuthor(comment);
+  return (
+    fullName(author) ||
+    comment.authorName ||
+    author?.email ||
+    comment.authorEmail ||
+    "Unknown"
+  );
+}
+
 function isMine(comment: TicketComment, me: CurrentIdentity): boolean {
   const author = getCommentAuthor(comment);
   const authorIds = [comment.authorId, comment.userId, author?.id].filter(
     (value): value is string => !!value,
   );
   if (authorIds.some((id) => me.ids.has(id))) return true;
-  return !!me.email && author?.email?.toLowerCase() === me.email;
+  const email = author?.email ?? comment.authorEmail;
+  return !!me.email && email?.toLowerCase() === me.email;
 }
 
-export function CommentFeed({ ticketId, isClosed = false }: CommentFeedProps) {
+export function CommentFeed({ ticketId, isClosed = false, role }: CommentFeedProps) {
   const me = useMe();
   const comments = useTicketComments(ticketId);
   const addComment = useAddComment();
   const [message, setMessage] = useState("");
+  const [internalNote, setInternalNote] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const meData = me.data as (Record<string, unknown> & { email?: string }) | undefined;
@@ -69,27 +82,48 @@ export function CommentFeed({ ticketId, isClosed = false }: CommentFeedProps) {
     email: meData?.email?.toLowerCase() ?? null,
   };
 
+  const visibleComments = (comments.data ?? []).filter(
+    (comment) => role === "technician" || comment.visibility !== "INTERNAL",
+  );
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [comments.data]);
+  }, [visibleComments.length]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!message.trim()) return;
+
+    const visibility: CommentVisibility | undefined =
+      role === "technician" && internalNote ? "INTERNAL" : undefined;
+
     addComment.mutate(
-      { id: ticketId, payload: { message: message.trim() } },
       {
-        onSuccess: () => setMessage(""),
-        onError: (error) => toast.error(getApiErrorMessage(error)),
+        id: ticketId,
+        payload: {
+          message: message.trim(),
+          ...(visibility ? { visibility } : {}),
+        },
+      },
+      {
+        onSuccess: () => {
+          setMessage("");
+          setInternalNote(false);
+        },
+        onError: (error) => toastApiError(error),
       },
     );
   };
 
-  const items = (comments.data ?? []).map((comment) => ({
+  const items = visibleComments.map((comment) => ({
     comment,
     mine: isMine(comment, identity),
     authorKey:
-      comment.authorId ?? comment.userId ?? getCommentAuthor(comment)?.id ?? comment.id,
+      comment.authorId ??
+      comment.userId ??
+      getCommentAuthor(comment)?.id ??
+      comment.authorEmail ??
+      comment.id,
   }));
 
   return (
@@ -101,7 +135,7 @@ export function CommentFeed({ ticketId, isClosed = false }: CommentFeedProps) {
         {comments.isError && (
           <p className="text-center text-sm text-destructive">Failed to load messages.</p>
         )}
-        {comments.data?.length === 0 && (
+        {visibleComments.length === 0 && !comments.isLoading && (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
             <div className="flex size-12 items-center justify-center rounded-full bg-muted">
               <Send className="size-5 text-muted-foreground" />
@@ -114,8 +148,9 @@ export function CommentFeed({ ticketId, isClosed = false }: CommentFeedProps) {
         )}
 
         {items.map(({ comment, mine, authorKey }, index) => {
+          const name = displayAuthorName(comment);
           const author = getCommentAuthor(comment);
-          const name = fullName(author) || author?.email || "Unknown";
+          const isInternal = comment.visibility === "INTERNAL";
           const prev = items[index - 1];
           const next = items[index + 1];
           const startsGroup = !prev || prev.authorKey !== authorKey;
@@ -140,21 +175,33 @@ export function CommentFeed({ ticketId, isClosed = false }: CommentFeedProps) {
 
               <div className={`flex max-w-[75%] flex-col ${mine ? "items-end" : "items-start"}`}>
                 {!mine && startsGroup && (
-                  <div className="mb-1 flex items-center gap-1.5 px-1">
+                  <div className="mb-1 flex flex-wrap items-center gap-1.5 px-1">
                     <span className="text-xs font-medium text-foreground">{name}</span>
                     {author?.role && (
                       <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
                         {author.role}
                       </span>
                     )}
+                    {comment.source === "EMAIL" && (
+                      <Badge variant="outline" className="h-4 px-1 text-[9px]">
+                        Email
+                      </Badge>
+                    )}
+                    {isInternal && (
+                      <Badge className="h-4 border-amber-300 bg-amber-100 px-1 text-[9px] text-amber-900">
+                        Internal
+                      </Badge>
+                    )}
                   </div>
                 )}
 
                 <div
                   className={`px-3.5 py-2 text-sm leading-relaxed shadow-sm ${
-                    mine
-                      ? `bg-primary text-primary-foreground rounded-2xl ${endsGroup ? "rounded-br-md" : ""}`
-                      : `bg-card text-card-foreground ring-1 ring-border rounded-2xl ${endsGroup ? "rounded-bl-md" : ""}`
+                    isInternal
+                      ? "rounded-2xl border border-amber-300/80 bg-amber-50 text-amber-950 dark:bg-amber-950/40 dark:text-amber-50"
+                      : mine
+                        ? `bg-primary text-primary-foreground rounded-2xl ${endsGroup ? "rounded-br-md" : ""}`
+                        : `bg-card text-card-foreground ring-1 ring-border rounded-2xl ${endsGroup ? "rounded-bl-md" : ""}`
                   }`}
                 >
                   <p className="whitespace-pre-wrap break-words">{comment.message}</p>
@@ -175,11 +222,22 @@ export function CommentFeed({ ticketId, isClosed = false }: CommentFeedProps) {
 
       {!isClosed && (
         <div className="border-t border-border bg-background px-3 py-3">
+          {role === "technician" && (
+            <label className="mb-2 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={internalNote}
+                onChange={(e) => setInternalNote(e.currentTarget.checked)}
+                className="size-3.5 rounded border-input"
+              />
+              <Label className="cursor-pointer font-normal">Internal note (hidden from employee)</Label>
+            </label>
+          )}
           <form className="flex items-end gap-2" onSubmit={handleSubmit}>
             <Textarea
               value={message}
               onChange={(e) => setMessage(e.currentTarget.value)}
-              placeholder="Type a message…"
+              placeholder={internalNote ? "Internal note…" : "Type a message…"}
               rows={1}
               className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl text-sm"
               onKeyDown={(e) => {

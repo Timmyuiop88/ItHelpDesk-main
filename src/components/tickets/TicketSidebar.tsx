@@ -17,7 +17,15 @@ import { useCurrentTechnicianId } from "../../hooks/technicians/useCurrentTechni
 import { useDepartments } from "../../hooks/departments/useDepartments";
 // import { useEmployees } from "../../hooks/employees/useEmployees";
 import { useTechnicians } from "../../hooks/technicians/useTechnicians";
-import { getApiErrorMessage } from "../../lib/apiError";
+import {
+  getApiErrorMessage,
+  getInvalidTransitionAllowed,
+  toastApiError,
+} from "../../lib/apiError";
+import { getClickableStatuses } from "../../lib/ticketTransitions";
+import { isEmailTicket } from "../../lib/tickets";
+import { AssignmentHistorySection } from "./AssignmentHistorySection";
+import { Badge } from "@/components/ui/badge";
 import { fullName } from "../../lib/format";
 import { getAssigneeId, getParticipantUserId } from "../../lib/tickets";
 import type { Ticket, TicketStatus } from "../../types/ticket.types";
@@ -65,9 +73,6 @@ export function TicketSidebar({
   const unassigned = !assigneeId && ticket.status === "OPEN";
   const assignedToMe = !!assigneeId && assigneeId === technicianId;
   const finished = ticket.status === "RESOLVED" || ticket.status === "CLOSED";
-  const canWork =
-    ticket.status === "IN_PROGRESS" || ticket.status === "WAITING_FOR_EMPLOYEE";
-
   const assignTicket = useAssignTicket();
   const updateTicket = useUpdateTicket();
   const resolveTicket = useResolveTicket();
@@ -79,29 +84,40 @@ export function TicketSidebar({
     resolveTicket.isPending ||
     closeTicket.isPending;
 
-  // Which statuses the technician can transition to
   const clickableStatuses: TicketStatus[] = isClosed
     ? []
-    : role === "technician"
-      ? (["IN_PROGRESS", "WAITING_FOR_EMPLOYEE", "RESOLVED", "CLOSED"] as TicketStatus[]).filter(
-          (s) => {
-            if (s === "IN_PROGRESS" && !assignedToMe) return false;
-            if (s === "WAITING_FOR_EMPLOYEE" && ticket.status !== "IN_PROGRESS") return false;
-            if ((s === "RESOLVED" || s === "CLOSED") && !canWork && s !== "CLOSED") return false;
-            return true;
-          },
-        )
-      : [];
+    : getClickableStatuses(role, ticket.status, {
+        assignedToMe,
+        assigneeId,
+      });
+
+  const handleTransitionError = (error: unknown) => {
+    const allowed = getInvalidTransitionAllowed(error);
+    if (allowed?.length) {
+      toastApiError(error, "Status not allowed");
+      return;
+    }
+    toastApiError(error);
+  };
 
   const handleStatusSelect = (status: TicketStatus) => {
     if (status === "IN_PROGRESS") {
-      // Assign to me then it becomes IN_PROGRESS
       if (!technicianId) return toast.error("Could not match your technician profile.");
-      assignTicket.mutate(
-        { id: ticketId, payload: { technicianId } },
+      if (ticket.status === "OPEN" && !assigneeId) {
+        assignTicket.mutate(
+          { id: ticketId, payload: { technicianId } },
+          {
+            onSuccess: () => toast.success("Ticket assigned to you"),
+            onError: handleTransitionError,
+          },
+        );
+        return;
+      }
+      updateTicket.mutate(
+        { id: ticketId, payload: { status: "IN_PROGRESS" } },
         {
-          onSuccess: () => toast.success("Ticket assigned to you"),
-          onError: (e) => toast.error(getApiErrorMessage(e)),
+          onSuccess: () => toast.success("Status updated"),
+          onError: handleTransitionError,
         },
       );
       return;
@@ -111,7 +127,7 @@ export function TicketSidebar({
         { id: ticketId, payload: { status: "WAITING_FOR_EMPLOYEE" } },
         {
           onSuccess: () => toast.success("Status updated"),
-          onError: (e) => toast.error(getApiErrorMessage(e)),
+          onError: handleTransitionError,
         },
       );
       return;
@@ -119,14 +135,14 @@ export function TicketSidebar({
     if (status === "RESOLVED") {
       resolveTicket.mutate(ticketId, {
         onSuccess: () => toast.success("Ticket resolved"),
-        onError: (e) => toast.error(getApiErrorMessage(e)),
+        onError: handleTransitionError,
       });
       return;
     }
     if (status === "CLOSED") {
       closeTicket.mutate(ticketId, {
         onSuccess: () => toast.success("Ticket closed"),
-        onError: (e) => toast.error(getApiErrorMessage(e)),
+        onError: handleTransitionError,
       });
       return;
     }
@@ -197,8 +213,27 @@ export function TicketSidebar({
       {/* Meta */}
       <div className="flex flex-col gap-1">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Details</span>
+        <div className="flex flex-wrap gap-1.5">
+          {ticket.category?.name && (
+            <Badge variant="secondary" className="text-[10px]">
+              {ticket.category.name}
+            </Badge>
+          )}
+          {isEmailTicket(ticket) && (
+            <Badge variant="outline" className="text-[10px]">
+              Via email
+            </Badge>
+          )}
+        </div>
         <TicketMeta ticket={ticket} showRequester showAssignee className="text-xs" />
       </div>
+
+      {role === "technician" && (
+        <>
+          <div className="border-t border-border" />
+          <AssignmentHistorySection ticketId={ticketId} />
+        </>
+      )}
 
       <div className="border-t border-border" />
 

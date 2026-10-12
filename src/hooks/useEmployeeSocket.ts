@@ -12,6 +12,7 @@ import { useSocketEvent } from "../components/SocketProvider";
 import { queryKeys } from "../lib/queryClient";
 import { remoteSessionService } from "../services/remote-session.service";
 import type {
+  SessionCancelledEvent,
   SessionEndedEvent,
   SessionRequestedEvent,
   SessionStartedEvent,
@@ -31,8 +32,12 @@ function useAuthToken(): string | null {
   return useSyncExternalStore(subscribe, getTokenSnapshot, getTokenSnapshot);
 }
 
+function approvalDeadline(request: SessionRequestedEvent): string {
+  return request.approvalExpiresAt ?? request.expiresAt;
+}
+
 function isExpired(request: SessionRequestedEvent): boolean {
-  return new Date(request.expiresAt).getTime() <= Date.now();
+  return new Date(approvalDeadline(request)).getTime() <= Date.now();
 }
 
 async function lookupTicketId(sessionId: string): Promise<string | undefined> {
@@ -91,6 +96,16 @@ export function useEmployeeSocket() {
     void queryClient.invalidateQueries({ queryKey: queryKeys.tickets.all });
   });
 
+  useSocketEvent<SessionCancelledEvent>("session:cancelled", (data) => {
+    setRequest((current) => {
+      if (current?.sessionId === data.sessionId) {
+        toast.message("Remote access request cancelled");
+        return null;
+      }
+      return current;
+    });
+  });
+
   useSocketEvent("session:expired-sweep", () => {
     setRequest((current) => (current && isExpired(current) ? null : current));
   });
@@ -100,7 +115,7 @@ export function useEmployeeSocket() {
       return;
     }
 
-    const msLeft = new Date(request.expiresAt).getTime() - Date.now();
+    const msLeft = new Date(approvalDeadline(request)).getTime() - Date.now();
     if (Number.isNaN(msLeft)) {
       return;
     }

@@ -1,10 +1,12 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 
-const TOKEN_KEY = "auth_token";
+const LEGACY_TOKEN_KEY = "auth_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
 const STORE_PATH = "auth-store.json";
 
-let memoryToken: string | null = null;
+let memoryAccessToken: string | null = null;
+let memoryRefreshToken: string | null = null;
 let cacheInitialized = false;
 const listeners = new Set<() => void>();
 
@@ -19,8 +21,22 @@ export function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+/** In-memory access token — used for React auth snapshots and API calls. */
+export function getAccessToken(): string | null {
+  return memoryAccessToken;
+}
+
+/** @deprecated Use getAccessToken — kept for existing subscribers. */
 export function getTokenSnapshot(): string | null {
-  return memoryToken;
+  return memoryAccessToken;
+}
+
+export function getRefreshToken(): string | null {
+  return memoryRefreshToken;
+}
+
+export function hasPersistedRefreshToken(): boolean {
+  return memoryRefreshToken !== null;
 }
 
 export function registerUnauthorizedHandler(handler: () => void): void {
@@ -31,43 +47,66 @@ export function triggerUnauthorizedHandler(): void {
   unauthorizedHandler?.();
 }
 
-async function readTokenFromPersistence(): Promise<string | null> {
+async function readRefreshFromPersistence(): Promise<string | null> {
   if (isTauri()) {
     const store = await load(STORE_PATH);
-    const token = await store.get<string>(TOKEN_KEY);
-    return token ?? null;
+    const refresh = await store.get<string>(REFRESH_TOKEN_KEY);
+    if (refresh) {
+      return refresh;
+    }
+    const legacy = await store.get<string>(LEGACY_TOKEN_KEY);
+    if (legacy) {
+      await store.set(REFRESH_TOKEN_KEY, legacy);
+      await store.delete(LEGACY_TOKEN_KEY);
+      await store.save();
+      return legacy;
+    }
+    return null;
   }
 
   if (typeof localStorage !== "undefined") {
-    return localStorage.getItem(TOKEN_KEY);
+    const refresh = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (refresh) {
+      return refresh;
+    }
+    const legacy = localStorage.getItem(LEGACY_TOKEN_KEY);
+    if (legacy) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, legacy);
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
+      return legacy;
+    }
   }
 
   return null;
 }
 
-async function writeTokenToPersistence(token: string): Promise<void> {
+async function writeRefreshToPersistence(refreshToken: string): Promise<void> {
   if (isTauri()) {
     const store = await load(STORE_PATH);
-    await store.set(TOKEN_KEY, token);
+    await store.set(REFRESH_TOKEN_KEY, refreshToken);
+    await store.delete(LEGACY_TOKEN_KEY);
     await store.save();
     return;
   }
 
   if (typeof localStorage !== "undefined") {
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
   }
 }
 
-async function removeTokenFromPersistence(): Promise<void> {
+async function removeRefreshFromPersistence(): Promise<void> {
   if (isTauri()) {
     const store = await load(STORE_PATH);
-    await store.delete(TOKEN_KEY);
+    await store.delete(REFRESH_TOKEN_KEY);
+    await store.delete(LEGACY_TOKEN_KEY);
     await store.save();
     return;
   }
 
   if (typeof localStorage !== "undefined") {
-    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
   }
 }
 
@@ -76,7 +115,7 @@ export async function initTokenStore(): Promise<void> {
     return;
   }
 
-  memoryToken = await readTokenFromPersistence();
+  memoryRefreshToken = await readRefreshFromPersistence();
   cacheInitialized = true;
   notify();
 }
@@ -86,17 +125,35 @@ export async function getToken(): Promise<string | null> {
     await initTokenStore();
   }
 
-  return memoryToken;
+  return memoryAccessToken;
 }
 
-export async function setToken(token: string): Promise<void> {
-  memoryToken = token;
-  await writeTokenToPersistence(token);
+export interface SessionTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export async function setSession(tokens: SessionTokens): Promise<void> {
+  memoryAccessToken = tokens.accessToken;
+  memoryRefreshToken = tokens.refreshToken;
+  await writeRefreshToPersistence(tokens.refreshToken);
   notify();
 }
 
+export async function clearSession(): Promise<void> {
+  memoryAccessToken = null;
+  memoryRefreshToken = null;
+  await removeRefreshFromPersistence();
+  notify();
+}
+
+/** @deprecated Use clearSession */
 export async function clearToken(): Promise<void> {
-  memoryToken = null;
-  await removeTokenFromPersistence();
+  await clearSession();
+}
+
+/** @deprecated Use setSession */
+export async function setToken(accessToken: string): Promise<void> {
+  memoryAccessToken = accessToken;
   notify();
 }

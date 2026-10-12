@@ -4,6 +4,7 @@ import {
   initTokenStore,
   registerUnauthorizedHandler,
 } from "../api/tokenStore";
+import { restoreSessionOnBoot } from "../api/session";
 import { initServerStore, getServerUrl } from "../api/serverStore";
 import { SocketProvider } from "./SocketProvider";
 import { ServerSetupPage } from "../pages/ServerSetupPage";
@@ -21,6 +22,9 @@ export function AuthSetup({ children }: { children: React.ReactNode }) {
     void Promise.all([initTokenStore(), initServerStore()]).then(async () => {
       const config = await getServerUrl();
       setHasServer(config !== null);
+      if (config !== null) {
+        await restoreSessionOnBoot();
+      }
       setReady(true);
     });
   }, [navigate]);

@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { setStoredDeviceId } from "../../api/deviceStore";
-import { setToken } from "../../api/tokenStore";
+import { armProactiveRefresh } from "../../api/session";
+import { setSession } from "../../api/tokenStore";
 import { collectMachineIdentity } from "../../lib/machineIdentity";
 import { queryClient, queryKeys } from "../../lib/queryClient";
 import { authService } from "../../services/auth.service";
@@ -17,7 +18,11 @@ export function useLogin() {
       return authService.login({ ...credentials, device });
     },
     onSuccess: async (data) => {
-      await setToken(data.accessToken);
+      await setSession({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+      });
+      armProactiveRefresh(data.accessToken);
       if (data.device?.id) {
         await setStoredDeviceId(data.device.id);
       }

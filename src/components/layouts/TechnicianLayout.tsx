@@ -1,12 +1,23 @@
-import { Home, LogOut, MonitorSmartphone, PanelLeftClose, PanelLeftOpen, Ticket } from "lucide-react";
+import {
+  Home,
+  LogOut,
+  MessageCircle,
+  MonitorSmartphone,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Ticket,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLogout } from "../../hooks/auth/useLogout";
+import { useNotificationSocket } from "../../hooks/notifications/useNotificationSocket";
 import { useTicketSocket } from "../../hooks/tickets/useTicketSocket";
 import { useTechnicianSocket } from "../../hooks/useTechnicianSocket";
 import { BrandMark } from "../BrandMark";
+import { NotificationBell } from "../notifications/NotificationBell";
+import { TechnicianAvailabilityControl } from "../technicians/TechnicianAvailabilityControl";
 import { DeviceAgentProvider } from "../DeviceAgentContext";
 import { TechnicianSessionIndicator } from "../remote/TechnicianSessionIndicator";
 import { SidebarNavItem } from "./SidebarNavItem";
@@ -15,6 +26,7 @@ const links = [
   { to: "/technician", label: "Home", end: true, icon: Home },
   { to: "/technician/tickets", label: "Tickets", end: false, icon: Ticket },
   { to: "/technician/devices", label: "Devices", end: false, icon: MonitorSmartphone },
+  { to: "/technician/chat", label: "Messages", end: false, icon: MessageCircle },
 ];
 
 export function TechnicianLayout() {
@@ -29,6 +41,7 @@ function ShellFrame() {
   const logout = useLogout();
   useTechnicianSocket();
   useTicketSocket("/technician");
+  useNotificationSocket("/technician");
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -86,6 +99,10 @@ function ShellFrame() {
           </nav>
 
           <div className={`mt-auto flex w-full flex-col gap-3 ${collapsed ? "items-center" : ""}`}>
+            <div className={`flex w-full gap-1 ${collapsed ? "flex-col items-center" : ""}`}>
+              <NotificationBell basePath="/technician" />
+              <TechnicianAvailabilityControl collapsed={collapsed} />
+            </div>
             <TechnicianSessionIndicator collapsed={collapsed} />
             {collapsed ? (
               <Tooltip>

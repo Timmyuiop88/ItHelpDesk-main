@@ -2,18 +2,21 @@ export interface SessionRequestedEvent {
   sessionId: string;
   deviceHostname: string;
   expiresAt: string;
+  approvalExpiresAt?: string;
   ticketId?: string;
 }
 
 export interface SessionApprovedEvent {
   sessionId: string;
-  rustdeskId: string;
-  rustdeskLink: string;
 }
 
 export interface SessionDeniedEvent {
   sessionId: string;
   deviceHostname: string;
+}
+
+export interface SessionCancelledEvent {
+  sessionId: string;
 }
 
 export interface SessionStartedEvent {
@@ -26,7 +29,16 @@ export interface SessionEndedEvent {
 
 export interface ApproveSessionResponse {
   status: string;
+}
+
+export interface ConnectionResponse {
+  rustdeskId: string;
   rustdeskLink: string;
+  approvalToken: string;
+}
+
+export interface StartSessionPayload {
+  approvalToken: string;
 }
 
 export interface CreateRemoteSessionPayload {
@@ -39,6 +51,7 @@ export interface RemoteSession {
   status: string;
   ticketId?: string;
   deviceId?: string;
+  approvalExpiresAt?: string;
 }
 
 export interface RemoteSessionNotesPayload {

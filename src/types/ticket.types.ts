@@ -9,6 +9,23 @@ export type TicketStatus =
   | "RESOLVED"
   | "CLOSED";
 
+export type TicketSource = "PORTAL" | "EMAIL";
+
+export type CommentVisibility = "PUBLIC" | "INTERNAL";
+
+export type CommentSource = "PORTAL" | "EMAIL";
+
+export interface TicketCategory {
+  id: string;
+  name: string;
+  slug?: string;
+}
+
+export interface ExternalRequester {
+  name: string;
+  email: string;
+}
+
 export type TicketUser = Pick<AuthUser, "id"> &
   Partial<Omit<AuthUser, "id">>;
 
@@ -19,11 +36,15 @@ export interface Ticket {
   description: string;
   priority: string;
   status: TicketStatus;
+  source?: TicketSource;
+  categoryId?: string | null;
+  category?: TicketCategory | null;
   deviceId?: string | null;
   createdAt?: string;
   updatedAt?: string;
-  employeeId?: string;
+  employeeId?: string | null;
   employee?: Employee | null;
+  externalRequester?: ExternalRequester | null;
   assignedTechnicianId?: string | null;
   assignedTechnician?: Technician | null;
   technicianId?: string | null;
@@ -35,10 +56,11 @@ export interface CreateTicketPayload {
   description: string;
   priority: string;
   deviceId?: string;
+  categoryId?: string;
 }
 
 export type UpdateTicketPayload = Partial<CreateTicketPayload> & {
-  status?: "IN_PROGRESS" | "WAITING_FOR_EMPLOYEE";
+  status?: TicketStatus;
 };
 
 export interface AssignTicketPayload {
@@ -54,6 +76,10 @@ export interface TicketComment {
   id: string;
   message: string;
   createdAt?: string;
+  visibility?: CommentVisibility;
+  source?: CommentSource;
+  authorName?: string | null;
+  authorEmail?: string | null;
   authorId?: string;
   author?: TicketUser | null;
   userId?: string;
@@ -62,6 +88,7 @@ export interface TicketComment {
 
 export interface CreateCommentPayload {
   message: string;
+  visibility?: CommentVisibility;
 }
 
 export interface TicketParticipant {
@@ -74,6 +101,17 @@ export interface TicketParticipant {
 
 export interface AddParticipantPayload {
   userId: string;
+}
+
+export interface TicketAssignmentHistoryEntry {
+  id: string;
+  ticketId: string;
+  fromTechnicianId?: string | null;
+  toTechnicianId?: string | null;
+  fromTechnicianName?: string | null;
+  toTechnicianName?: string | null;
+  note?: string | null;
+  createdAt?: string;
 }
 
 export interface TicketCommentEvent {
@@ -108,4 +146,10 @@ export interface TicketParticipantRemovedEvent {
   ticketId: string;
   ticketNumber?: string | number;
   title: string;
+}
+
+export interface TicketLifecycleEvent {
+  ticketId: string;
+  ticketNumber?: string | number;
+  title?: string;
 }

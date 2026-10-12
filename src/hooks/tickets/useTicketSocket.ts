@@ -11,6 +11,7 @@ import type {
   TicketCommentEvent,
   TicketParticipantAddedEvent,
   TicketParticipantRemovedEvent,
+  TicketLifecycleEvent,
   TicketTransferredEvent,
 } from "../../types/ticket.types";
 
@@ -73,6 +74,20 @@ export function useTicketSocket(basePath: "/employee" | "/technician") {
     toast.message(`You were added to ${ticketLabel(event)}`, {
       description: event.title,
       action: openAction(event.ticketId),
+    });
+  });
+
+  useSocketEvent<TicketLifecycleEvent>("ticket:resolved", (event) => {
+    refreshTicket(event.ticketId);
+    toast.message(`${ticketLabel(event)} resolved`, {
+      action: openAction(event.ticketId),
+    });
+  });
+
+  useSocketEvent<TicketLifecycleEvent>("ticket:closed", (event) => {
+    refreshTicket(event.ticketId);
+    toast.message(`${ticketLabel(event)} closed`, {
+      action: isViewing(event.ticketId) ? undefined : openAction(event.ticketId),
     });
   });
 

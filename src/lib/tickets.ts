@@ -35,7 +35,17 @@ export function getAssigneeName(ticket: Ticket): string {
 }
 
 export function getRequesterName(ticket: Ticket): string {
-  return fullName(ticket.employee?.user);
+  if (ticket.externalRequester?.name) {
+    return ticket.externalRequester.name;
+  }
+  if (ticket.externalRequester?.email) {
+    return ticket.externalRequester.email;
+  }
+  return fullName(ticket.employee?.user) || ticket.employee?.user?.email || "Unknown requester";
+}
+
+export function isEmailTicket(ticket: Ticket): boolean {
+  return ticket.source === "EMAIL" || !!ticket.externalRequester;
 }
 
 export function getCommentAuthor(comment: TicketComment): TicketUser | null {

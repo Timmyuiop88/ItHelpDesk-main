@@ -1,11 +1,21 @@
-import { Home, LogOut, MonitorSmartphone, PanelLeftClose, PanelLeftOpen, Ticket } from "lucide-react";
+import {
+  Home,
+  LogOut,
+  MessageCircle,
+  MonitorSmartphone,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Ticket,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Outlet, useMatch } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLogout } from "../../hooks/auth/useLogout";
+import { useNotificationSocket } from "../../hooks/notifications/useNotificationSocket";
 import { useTicketSocket } from "../../hooks/tickets/useTicketSocket";
 import { BrandMark } from "../BrandMark";
+import { NotificationBell } from "../notifications/NotificationBell";
 import { DeviceAgentProvider } from "../DeviceAgentContext";
 import { EmployeeSessionBanner } from "../remote/EmployeeSessionBanner";
 import {
@@ -19,11 +29,13 @@ const links = [
   { to: "/employee", label: "Home", end: true, icon: Home },
   { to: "/employee/tickets", label: "Tickets", end: false, icon: Ticket },
   { to: "/employee/device", label: "Device", end: false, icon: MonitorSmartphone },
+  { to: "/employee/chat", label: "Messages", end: false, icon: MessageCircle },
 ];
 
 function ShellFrame() {
   const logout = useLogout();
   useTicketSocket("/employee");
+  useNotificationSocket("/employee");
   const { request, activeSession } = useEmployeeRemote();
   const viewingTicketId = useMatch("/employee/tickets/:id")?.params.id;
   const [collapsed, setCollapsed] = useState(false);
@@ -88,7 +100,8 @@ function ShellFrame() {
             ))}
           </nav>
 
-          <div className={`mt-auto flex w-full flex-col ${collapsed ? "items-center" : ""}`}>
+          <div className={`mt-auto flex w-full flex-col gap-3 ${collapsed ? "items-center" : ""}`}>
+            <NotificationBell basePath="/employee" />
             {collapsed ? (
               <Tooltip>
                 <TooltipTrigger asChild>

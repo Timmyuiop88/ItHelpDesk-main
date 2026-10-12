@@ -23,7 +23,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { RefreshButton } from "../../components/common/RefreshButton";
 import { useDeviceAgentState } from "../../components/DeviceAgentContext";
 import { TicketMeta } from "../../components/tickets/TicketMeta";
-import { useCreateTicket } from "../../hooks/tickets/useCreateTicket";
+import { useCategories } from "../../hooks/categories/useCategories";
+import {
+  createTicketSuccessMessage,
+  useCreateTicket,
+} from "../../hooks/tickets/useCreateTicket";
 import { useTickets } from "../../hooks/tickets/useTickets";
 import { getApiErrorMessage } from "../../lib/apiError";
 
@@ -32,12 +36,14 @@ const PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
 export function TicketsPage() {
   const tickets = useTickets();
   const createTicket = useCreateTicket();
+  const categories = useCategories();
   const agent = useDeviceAgentState();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<string>("MEDIUM");
+  const [categoryId, setCategoryId] = useState<string>("");
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -48,14 +54,16 @@ export function TicketsPage() {
         description,
         priority,
         deviceId: agent.device?.id,
+        ...(categoryId ? { categoryId } : {}),
       },
       {
-        onSuccess: () => {
-          toast.success("Ticket created");
+        onSuccess: (ticket) => {
+          toast.success(createTicketSuccessMessage(ticket));
           setOpen(false);
           setTitle("");
           setDescription("");
           setPriority("MEDIUM");
+          setCategoryId("");
         },
         onError: (error) => {
           toast.error(getApiErrorMessage(error));
@@ -111,6 +119,22 @@ export function TicketsPage() {
                     }
                     required
                   />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="category">Category</Label>
+                  <select
+                    id="category"
+                    className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+                    value={categoryId}
+                    onChange={(event) => setCategoryId(event.currentTarget.value)}
+                  >
+                    <option value="">Select a category</option>
+                    {(categories.data ?? []).map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="priority">Priority</Label>

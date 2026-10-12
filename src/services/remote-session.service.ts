@@ -2,10 +2,12 @@ import { apiGet, apiPatch, apiPost } from "../api/config";
 import { ENDPOINTS } from "../api/endpoints";
 import type {
   ApproveSessionResponse,
+  ConnectionResponse,
   CreateRemoteSessionPayload,
   RemoteSession,
   RemoteSessionNotesPayload,
   RemoteSessionTimelineEntry,
+  StartSessionPayload,
 } from "../types/remote-session.types";
 
 export const remoteSessionService = {
@@ -23,11 +25,20 @@ export const remoteSessionService = {
     ),
   deny: (id: string) =>
     apiPost<void, Record<string, never>>(ENDPOINTS.remoteSessions.deny(id), {}),
-  start: (id: string) =>
-    apiPost<RemoteSession, Record<string, never>>(
+  connection: (id: string) =>
+    apiGet<ConnectionResponse>(ENDPOINTS.remoteSessions.connection(id)),
+  start: (id: string, payload: StartSessionPayload) =>
+    apiPost<RemoteSession, StartSessionPayload>(
       ENDPOINTS.remoteSessions.start(id),
+      payload,
+    ),
+  cancel: (id: string) =>
+    apiPost<RemoteSession, Record<string, never>>(
+      ENDPOINTS.remoteSessions.cancel(id),
       {},
     ),
+  consent: (id: string) =>
+    apiPost<void, Record<string, never>>(ENDPOINTS.remoteSessions.consent(id), {}),
   end: (id: string) =>
     apiPost<RemoteSession, Record<string, never>>(
       ENDPOINTS.remoteSessions.end(id),

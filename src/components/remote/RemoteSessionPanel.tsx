@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useTicketDevices } from "../../hooks/tickets/useTicketDevices";
+import { useCancelSession } from "../../hooks/remote-sessions/useCancelSession";
 import { useEndSession } from "../../hooks/remote-sessions/useEndSession";
 import { useRequestSession } from "../../hooks/remote-sessions/useRequestSession";
 import { useSaveSessionNotes } from "../../hooks/remote-sessions/useSaveSessionNotes";
@@ -137,6 +138,8 @@ export function RemoteSessionPanel({
           <ApprovedState session={session} />
         ) : session.status === "ACTIVE" ? (
           <ActiveState session={session} />
+        ) : session.status === "CANCELLED" ? (
+          <CancelledState session={session} onNew={() => setPickerOpen(true)} />
         ) : session.status === "DENIED" ? (
           <DeniedState session={session} onRetry={() => setPickerOpen(true)} />
         ) : (
@@ -239,6 +242,18 @@ function IdleState({
 }
 
 function WaitingState({ session }: { session: TechnicianSessionState }) {
+  const cancelSession = useCancelSession();
+
+  const handleCancel = () => {
+    cancelSession.mutate(session.id, {
+      onSuccess: () => {
+        updateTechnicianSession(session.id, { status: "CANCELLED" });
+        toast.message("Remote request cancelled");
+      },
+      onError: (error) => toast.error(getApiErrorMessage(error)),
+    });
+  };
+
   return (
     <StateBlock
       tone="waiting"
@@ -259,18 +274,38 @@ function WaitingState({ session }: { session: TechnicianSessionState }) {
           . The request expires automatically if nobody answers.
         </>
       }
+      actions={
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCancel}
+          disabled={cancelSession.isPending}
+        >
+          Cancel request
+        </Button>
+      }
     />
   );
 }
 
 function ApprovedState({ session }: { session: TechnicianSessionState }) {
   const [connecting, setConnecting] = useState(false);
+  const cancelSession = useCancelSession();
 
   const connect = async () => {
-    if (!session.rustdeskLink) return;
     setConnecting(true);
-    await connectToSession(session.id, session.rustdeskLink);
+    await connectToSession(session.id);
     setConnecting(false);
+  };
+
+  const handleCancel = () => {
+    cancelSession.mutate(session.id, {
+      onSuccess: () => {
+        updateTechnicianSession(session.id, { status: "CANCELLED" });
+        toast.message("Remote request cancelled");
+      },
+      onError: (error) => toast.error(getApiErrorMessage(error)),
+    });
   };
 
   return (
@@ -281,12 +316,43 @@ function ApprovedState({ session }: { session: TechnicianSessionState }) {
       description="Open RustDesk to connect to the employee's screen."
       actions={
         <>
-          <Button onClick={() => void connect()} disabled={connecting || !session.rustdeskLink}>
+          <Button onClick={() => void connect()} disabled={connecting}>
             {connecting ? <Loader2 className="animate-spin" /> : <ExternalLink />}
             Connect with RustDesk
           </Button>
-          <CopyLinkButton link={session.rustdeskLink} />
+          {session.rustdeskLink && <CopyLinkButton link={session.rustdeskLink} />}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCancel}
+            disabled={cancelSession.isPending}
+          >
+            Cancel
+          </Button>
         </>
+      }
+    />
+  );
+}
+
+function CancelledState({
+  session,
+  onNew,
+}: {
+  session: TechnicianSessionState;
+  onNew: () => void;
+}) {
+  return (
+    <StateBlock
+      tone="muted"
+      icon={<XCircle className="size-5" />}
+      title="Request cancelled"
+      description={`The remote request for ${session.deviceHostname || "this device"} was cancelled.`}
+      actions={
+        <Button variant="outline" size="sm" onClick={onNew}>
+          <RotateCcw className="size-4" />
+          New request
+        </Button>
       }
     />
   );

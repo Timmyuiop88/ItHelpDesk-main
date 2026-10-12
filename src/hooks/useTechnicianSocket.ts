@@ -7,6 +7,7 @@ import { queryKeys } from "../lib/queryClient";
 import { connectToSession } from "../lib/remoteConnect";
 import type {
   SessionApprovedEvent,
+  SessionCancelledEvent,
   SessionDeniedEvent,
   SessionEndedEvent,
 } from "../types/remote-session.types";
@@ -49,13 +50,12 @@ export function useTechnicianSocket() {
       return;
     }
     toast.success("Employee approved remote access", {
-      description: "Opening RustDesk…",
+      description: "You can connect from the remote support panel.",
     });
     updateTechnicianSession(data.sessionId, {
       status: "APPROVED",
-      rustdeskLink: data.rustdeskLink,
     });
-    void connectToSession(data.sessionId, data.rustdeskLink);
+    void connectToSession(data.sessionId);
   });
 
   useSocketEvent<SessionDeniedEvent>("session:denied", (data) => {
@@ -69,6 +69,14 @@ export function useTechnicianSocket() {
       status: "DENIED",
       deviceHostname: data.deviceHostname,
     });
+  });
+
+  useSocketEvent<SessionCancelledEvent>("session:cancelled", (data) => {
+    if (isOtherSession(data.sessionId)) {
+      return;
+    }
+    toast.message("Remote request cancelled");
+    updateTechnicianSession(data.sessionId, { status: "CANCELLED" });
   });
 
   useSocketEvent<SessionEndedEvent>("session:ended", (data) => {

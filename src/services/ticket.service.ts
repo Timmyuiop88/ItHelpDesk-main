@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPatch, apiPost } from "../api/config";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPostWithHeaders } from "../api/config";
 import { ENDPOINTS } from "../api/endpoints";
 import type { TicketDevicesResponse } from "../types/device.types";
 import type {
@@ -7,6 +7,7 @@ import type {
   CreateCommentPayload,
   CreateTicketPayload,
   Ticket,
+  TicketAssignmentHistoryEntry,
   TicketComment,
   TicketParticipant,
   TransferTicketPayload,
@@ -16,8 +17,12 @@ import type {
 export const ticketService = {
   getAll: () => apiGet<Ticket[]>(ENDPOINTS.tickets.base),
   getById: (id: string) => apiGet<Ticket>(ENDPOINTS.tickets.byId(id)),
-  create: (payload: CreateTicketPayload) =>
-    apiPost<Ticket, CreateTicketPayload>(ENDPOINTS.tickets.base, payload),
+  create: (payload: CreateTicketPayload, idempotencyKey: string) =>
+    apiPostWithHeaders<Ticket, CreateTicketPayload>(
+      ENDPOINTS.tickets.base,
+      payload,
+      { "Idempotency-Key": idempotencyKey },
+    ),
   update: (id: string, payload: UpdateTicketPayload) =>
     apiPatch<Ticket, UpdateTicketPayload>(
       ENDPOINTS.tickets.byId(id),
@@ -34,6 +39,10 @@ export const ticketService = {
     apiPost<Ticket, Record<string, never>>(ENDPOINTS.tickets.resolve(id), {}),
   close: (id: string) =>
     apiPost<Ticket, Record<string, never>>(ENDPOINTS.tickets.close(id), {}),
+  getAssignmentHistory: (id: string) =>
+    apiGet<TicketAssignmentHistoryEntry[]>(
+      ENDPOINTS.tickets.assignmentHistory(id),
+    ),
   getDevices: (id: string) =>
     apiGet<TicketDevicesResponse>(ENDPOINTS.tickets.devices(id)),
   getComments: (id: string) =>

@@ -66,7 +66,7 @@ export function TicketDetailPage() {
             </div>
 
             {/* Chat feed fills remaining space */}
-            <CommentFeed ticketId={id} isClosed={isClosed} />
+            <CommentFeed ticketId={id} isClosed={isClosed} role="employee" />
           </div>
 
           {/* ── Right sidebar ── */}

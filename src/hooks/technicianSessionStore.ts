@@ -3,6 +3,7 @@ export type TechnicianSessionStatus =
   | "APPROVED"
   | "ACTIVE"
   | "DENIED"
+  | "CANCELLED"
   | "ENDED";
 
 export interface TechnicianSessionState {
@@ -53,5 +54,9 @@ export function updateTechnicianSession(
 }
 
 export function isLiveStatus(status: TechnicianSessionStatus): boolean {
-  return status === "REQUESTED" || status === "APPROVED" || status === "ACTIVE";
+  return (
+    status === "REQUESTED" ||
+    status === "APPROVED" ||
+    status === "ACTIVE"
+  );
 }

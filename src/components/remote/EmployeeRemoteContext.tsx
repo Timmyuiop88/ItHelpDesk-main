@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useApproveSession } from "../../hooks/remote-sessions/useApproveSession";
+import { useConsentSession } from "../../hooks/remote-sessions/useConsentSession";
 import { useDenySession } from "../../hooks/remote-sessions/useDenySession";
 import { useEmployeeSocket } from "../../hooks/useEmployeeSocket";
 import { getApiErrorMessage } from "../../lib/apiError";
@@ -10,6 +11,7 @@ import { useDeviceAgentState } from "../DeviceAgentContext";
 function useEmployeeRemoteState() {
   const socket = useEmployeeSocket();
   const approve = useApproveSession();
+  const consent = useConsentSession();
   const deny = useDenySession();
   const agent = useDeviceAgentState();
   const { request, clearRequest, markApproved } = socket;
@@ -24,8 +26,12 @@ function useEmployeeRemoteState() {
     if (!request) return;
     approve.mutate(request.sessionId, {
       onSuccess: () => {
-        markApproved(request);
-        clearRequest();
+        consent.mutate(request.sessionId, {
+          onSettled: () => {
+            markApproved(request);
+            clearRequest();
+          },
+        });
       },
       onError: (error) => toast.error(getApiErrorMessage(error)),
     });

@@ -16,10 +16,20 @@ export interface AuthUser {
   role: UserRole;
 }
 
-export interface LoginResponse {
+export interface TokenPair {
   accessToken: string;
+  refreshToken: string;
+}
+
+export interface LoginResponse extends TokenPair {
   user: AuthUser;
   device?: Device | null;
+}
+
+export interface RefreshResponse extends TokenPair {}
+
+export interface LogoutRequest {
+  refreshToken: string;
 }
 
 export type MeResponse = AuthUser;

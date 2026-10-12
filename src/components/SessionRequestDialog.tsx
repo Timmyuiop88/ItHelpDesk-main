@@ -58,7 +58,10 @@ export function SessionRequestDialog({ suppressed = false }: SessionRequestDialo
             </div>
 
             <div className="px-6 pb-5">
-              <RequestCountdown key={request.sessionId} expiresAt={request.expiresAt} />
+              <RequestCountdown
+                key={request.sessionId}
+                expiresAt={request.approvalExpiresAt ?? request.expiresAt}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3 border-t border-border bg-muted/40 px-6 py-4">
