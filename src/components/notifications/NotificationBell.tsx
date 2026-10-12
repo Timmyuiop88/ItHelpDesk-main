@@ -19,6 +19,11 @@ import {
   useUnreadNotificationCount,
 } from "../../hooks/notifications/useNotifications";
 import { formatRelative } from "../../lib/format";
+import {
+  isNotificationRead,
+  notificationPath,
+  type NotificationItem,
+} from "../../types/notification.types";
 
 interface NotificationBellProps {
   basePath: "/employee" | "/technician";
@@ -34,10 +39,11 @@ export function NotificationBell({ basePath }: NotificationBellProps) {
 
   const items = notifications.items;
 
-  const openTicket = (ticketId?: string | null) => {
-    if (ticketId) {
+  const openNotification = (item: NotificationItem) => {
+    const path = notificationPath(item, basePath);
+    if (path) {
       setOpen(false);
-      navigate(`${basePath}/tickets/${ticketId}`);
+      navigate(path);
     }
   };
 
@@ -97,13 +103,13 @@ export function NotificationBell({ basePath }: NotificationBellProps) {
               key={item.id}
               type="button"
               className={`flex w-full flex-col gap-0.5 border-b border-border px-4 py-2.5 text-left text-sm transition-colors hover:bg-muted/50 ${
-                item.read ? "opacity-70" : "bg-primary/5"
+                isNotificationRead(item) ? "opacity-70" : "bg-primary/5"
               }`}
               onClick={() => {
-                if (!item.read) {
+                if (!isNotificationRead(item)) {
                   markRead.mutate(item.id);
                 }
-                openTicket(item.ticketId);
+                openNotification(item);
               }}
             >
               <span className="font-medium leading-snug">{item.title}</span>

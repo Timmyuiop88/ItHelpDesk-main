@@ -1,4 +1,5 @@
 import {
+  Bell,
   Home,
   LogOut,
   MessageCircle,
@@ -12,11 +13,12 @@ import { Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLogout } from "../../hooks/auth/useLogout";
+import { useUnreadNotificationCount } from "../../hooks/notifications/useNotifications";
 import { useNotificationSocket } from "../../hooks/notifications/useNotificationSocket";
 import { useTicketSocket } from "../../hooks/tickets/useTicketSocket";
 import { useTechnicianSocket } from "../../hooks/useTechnicianSocket";
 import { BrandMark } from "../BrandMark";
-import { NotificationBell } from "../notifications/NotificationBell";
+// import { NotificationBell } from "../notifications/NotificationBell";
 import { TechnicianAvailabilityControl } from "../technicians/TechnicianAvailabilityControl";
 import { DeviceAgentProvider } from "../DeviceAgentContext";
 import { TechnicianSessionIndicator } from "../remote/TechnicianSessionIndicator";
@@ -27,6 +29,7 @@ const links = [
   { to: "/technician/tickets", label: "Tickets", end: false, icon: Ticket },
   { to: "/technician/devices", label: "Devices", end: false, icon: MonitorSmartphone },
   { to: "/technician/chat", label: "Messages", end: false, icon: MessageCircle },
+  { to: "/technician/notifications", label: "Notifications", end: false, icon: Bell },
 ];
 
 export function TechnicianLayout() {
@@ -39,6 +42,7 @@ export function TechnicianLayout() {
 
 function ShellFrame() {
   const logout = useLogout();
+  const unreadNotifications = useUnreadNotificationCount();
   useTechnicianSocket();
   useTicketSocket("/technician");
   useNotificationSocket("/technician");
@@ -94,13 +98,18 @@ function ShellFrame() {
           )}
           <nav className={`flex w-full flex-1 flex-col gap-1 ${collapsed ? "items-center" : ""}`}>
             {links.map((link) => (
-              <SidebarNavItem key={link.to} {...link} collapsed={collapsed} />
+              <SidebarNavItem
+                key={link.to}
+                {...link}
+                collapsed={collapsed}
+                badge={link.icon === Bell ? unreadNotifications.data : undefined}
+              />
             ))}
           </nav>
 
           <div className={`mt-auto flex w-full flex-col gap-3 ${collapsed ? "items-center" : ""}`}>
             <div className={`flex w-full gap-1 ${collapsed ? "flex-col items-center" : ""}`}>
-              <NotificationBell basePath="/technician" />
+              {/* <NotificationBell basePath="/technician" /> */}
               <TechnicianAvailabilityControl collapsed={collapsed} />
             </div>
             <TechnicianSessionIndicator collapsed={collapsed} />

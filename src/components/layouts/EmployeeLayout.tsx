@@ -1,4 +1,5 @@
 import {
+  Bell,
   Home,
   LogOut,
   MessageCircle,
@@ -12,10 +13,11 @@ import { Outlet, useMatch } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLogout } from "../../hooks/auth/useLogout";
+import { useUnreadNotificationCount } from "../../hooks/notifications/useNotifications";
 import { useNotificationSocket } from "../../hooks/notifications/useNotificationSocket";
 import { useTicketSocket } from "../../hooks/tickets/useTicketSocket";
 import { BrandMark } from "../BrandMark";
-import { NotificationBell } from "../notifications/NotificationBell";
+// import { NotificationBell } from "../notifications/NotificationBell";
 import { DeviceAgentProvider } from "../DeviceAgentContext";
 import { EmployeeSessionBanner } from "../remote/EmployeeSessionBanner";
 import {
@@ -30,10 +32,12 @@ const links = [
   { to: "/employee/tickets", label: "Tickets", end: false, icon: Ticket },
   { to: "/employee/device", label: "Device", end: false, icon: MonitorSmartphone },
   { to: "/employee/chat", label: "Messages", end: false, icon: MessageCircle },
+  { to: "/employee/notifications", label: "Notifications", end: false, icon: Bell },
 ];
 
 function ShellFrame() {
   const logout = useLogout();
+  const unreadNotifications = useUnreadNotificationCount();
   useTicketSocket("/employee");
   useNotificationSocket("/employee");
   const { request, activeSession } = useEmployeeRemote();
@@ -96,12 +100,17 @@ function ShellFrame() {
           )}
           <nav className={`flex w-full flex-1 flex-col gap-1 ${collapsed ? "items-center" : ""}`}>
             {links.map((link) => (
-              <SidebarNavItem key={link.to} {...link} collapsed={collapsed} />
+              <SidebarNavItem
+                key={link.to}
+                {...link}
+                collapsed={collapsed}
+                badge={link.icon === Bell ? unreadNotifications.data : undefined}
+              />
             ))}
           </nav>
 
           <div className={`mt-auto flex w-full flex-col gap-3 ${collapsed ? "items-center" : ""}`}>
-            <NotificationBell basePath="/employee" />
+            {/* <NotificationBell basePath="/employee" /> */}
             {collapsed ? (
               <Tooltip>
                 <TooltipTrigger asChild>

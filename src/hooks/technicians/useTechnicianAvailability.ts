@@ -9,7 +9,6 @@ export function useUpdateTechnicianAvailability() {
     mutationFn: (payload: TechnicianAvailabilityPayload) =>
       technicianService.updateAvailability(payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
       await queryClient.invalidateQueries({ queryKey: queryKeys.technicians.all });
     },
   });

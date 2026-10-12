@@ -1,5 +1,6 @@
 import { Loader2, MessageCircle, Send } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,15 @@ function messageAuthor(message: ChatMessage): string {
 export function ChatPage() {
   const me = useMe();
   const conversations = useChatConversations();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const requestedConversation = searchParams.get("conversation");
+  const [selectedId, setSelectedId] = useState<string | null>(requestedConversation);
+
+  useEffect(() => {
+    if (requestedConversation) {
+      setSelectedId(requestedConversation);
+    }
+  }, [requestedConversation]);
   const messages = useChatMessages(selectedId);
   const send = useSendChatMessage(selectedId ?? "");
   const markRead = useMarkChatRead();

@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from "../api/config";
+import { apiGet, apiPost } from "../api/config";
 import { ENDPOINTS } from "../api/endpoints";
 import { cleanParams } from "../lib/pagination";
 import type { CursorPage } from "../types/pagination.types";
@@ -21,7 +21,7 @@ export const notificationService = {
   unreadCount: () =>
     apiGet<UnreadCountResponse>(ENDPOINTS.notifications.unreadCount),
   markRead: (id: string) =>
-    apiPatch<void, Record<string, never>>(ENDPOINTS.notifications.read(id), {}),
+    apiPost<void, Record<string, never>>(ENDPOINTS.notifications.read(id), {}),
   markAllRead: () =>
     apiPost<void, Record<string, never>>(ENDPOINTS.notifications.readAll, {}),
 };
