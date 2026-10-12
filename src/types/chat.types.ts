@@ -1,8 +1,17 @@
-export interface ChatParticipant {
+export interface ChatUser {
   id: string;
   firstName?: string;
   lastName?: string;
   email?: string;
+  role?: string;
+}
+
+export interface ChatParticipant {
+  conversationId?: string;
+  userId: string;
+  joinedAt?: string;
+  lastReadAt?: string | null;
+  user?: ChatUser | null;
 }
 
 export interface ChatConversation {
@@ -20,7 +29,7 @@ export interface ChatMessage {
   conversationId: string;
   body: string;
   senderId?: string;
-  sender?: ChatParticipant | null;
+  sender?: ChatUser | null;
   createdAt?: string;
   readAt?: string | null;
 }

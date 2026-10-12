@@ -49,6 +49,25 @@ export interface Ticket {
   assignedTechnician?: Technician | null;
   technicianId?: string | null;
   technician?: Technician | null;
+  commentCount?: number;
+  comments?: TicketComment[];
+  commentsTruncated?: boolean;
+}
+
+export interface TicketListParams {
+  page?: number;
+  limit?: number;
+  status?: TicketStatus;
+  priority?: string;
+  categoryId?: string;
+  assignedTo?: "me" | "unassigned";
+  q?: string;
+}
+
+export interface TicketCommentsParams {
+  page?: number;
+  limit?: number;
+  order?: "asc" | "desc";
 }
 
 export interface CreateTicketPayload {

@@ -9,6 +9,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Pagination } from "../common/pagination/Pagination";
+import { infinitePropsFromCursor } from "../common/pagination/paginationAdapters";
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
@@ -29,8 +32,7 @@ export function NotificationBell({ basePath }: NotificationBellProps) {
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
 
-  const items =
-    notifications.data?.pages.flatMap((page) => page.items) ?? [];
+  const items = notifications.items;
 
   const openTicket = (ticketId?: string | null) => {
     if (ticketId) {
@@ -69,6 +71,18 @@ export function NotificationBell({ basePath }: NotificationBellProps) {
             Mark all read
           </Button>
         </DialogHeader>
+        <div className="flex items-center gap-2 border-b border-border px-4 py-2">
+          <input
+            id="unread-only"
+            type="checkbox"
+            checked={notifications.unreadOnly}
+            onChange={(e) => notifications.setUnreadOnly(e.currentTarget.checked)}
+            className="size-3.5 accent-primary"
+          />
+          <Label htmlFor="unread-only" className="text-xs font-normal">
+            Unread only
+          </Label>
+        </div>
         <div className="max-h-80 overflow-y-auto">
           {notifications.isLoading && (
             <p className="p-4 text-center text-xs text-muted-foreground">Loading…</p>
@@ -105,6 +119,7 @@ export function NotificationBell({ basePath }: NotificationBellProps) {
               )}
             </button>
           ))}
+          <Pagination variant="infinite" {...infinitePropsFromCursor(notifications)} />
         </div>
       </DialogContent>
     </Dialog>

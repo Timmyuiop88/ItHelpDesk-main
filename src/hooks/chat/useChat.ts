@@ -1,22 +1,33 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../../lib/queryClient";
 import { chatService } from "../../services/chat.service";
 import type { SendChatMessagePayload } from "../../types/chat.types";
+import { usePagedInfiniteQuery } from "../common/usePagedInfiniteQuery";
+import { useCursorQuery } from "../common/useCursorQuery";
+
+const CONVERSATION_PAGE_SIZE = 20;
+const MESSAGE_PAGE_SIZE = 50;
 
 export function useChatConversations() {
-  return useQuery({
-    queryKey: queryKeys.chat.conversations,
-    queryFn: () => chatService.listConversations(),
+  return usePagedInfiniteQuery({
+    queryKey: queryKeys.chat.conversations({}),
+    queryFn: ({ page, limit, signal }) =>
+      chatService.listConversations({ page, limit }, signal),
+    limit: CONVERSATION_PAGE_SIZE,
   });
 }
 
 export function useChatMessages(conversationId: string | null) {
-  return useQuery({
+  const params = { limit: MESSAGE_PAGE_SIZE };
+  return useCursorQuery({
     queryKey: conversationId
-      ? queryKeys.chat.messages(conversationId)
+      ? queryKeys.chat.messages(conversationId, params)
       : ["chat", "messages", "none"],
-    queryFn: () => chatService.listMessages(conversationId!, { limit: 50 }),
+    queryFn: ({ cursor, limit, signal }) =>
+      chatService.listMessages(conversationId!, { cursor, limit }, signal),
+    limit: MESSAGE_PAGE_SIZE,
     enabled: !!conversationId,
+    reverse: true,
   });
 }
 
@@ -27,10 +38,12 @@ export function useSendChatMessage(conversationId: string) {
       chatService.sendMessage(conversationId, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.chat.messages(conversationId),
+        queryKey: queryKeys.chat.messages(conversationId, {
+          limit: MESSAGE_PAGE_SIZE,
+        }),
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.chat.conversations,
+        queryKey: queryKeys.chat.conversations({}),
       });
     },
   });
@@ -42,10 +55,12 @@ export function useMarkChatRead() {
     mutationFn: (conversationId: string) => chatService.markRead(conversationId),
     onSuccess: async (_data, conversationId) => {
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.chat.conversations,
+        queryKey: queryKeys.chat.conversations({}),
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.chat.messages(conversationId),
+        queryKey: queryKeys.chat.messages(conversationId, {
+          limit: MESSAGE_PAGE_SIZE,
+        }),
       });
     },
   });

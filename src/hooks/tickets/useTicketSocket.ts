@@ -31,7 +31,7 @@ export function useTicketSocket(basePath: "/employee" | "/technician") {
 
   const refreshTicket = (ticketId: string) => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.tickets.detail(ticketId) });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.tickets.all, exact: true });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tickets.all });
   };
 
   useSocketEvent<TicketCommentEvent>("ticket:comment", (event) => {

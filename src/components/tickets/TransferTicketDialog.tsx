@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useTechnicians } from "../../hooks/technicians/useTechnicians";
+import { useAllTechnicians } from "../../hooks/technicians/useTechnicians";
 import { useTransferTicket } from "../../hooks/tickets/useTransferTicket";
 import { getApiErrorMessage } from "../../lib/apiError";
 import { fullName } from "../../lib/format";
@@ -32,7 +32,7 @@ export function TransferTicketDialog({
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [note, setNote] = useState("");
-  const technicians = useTechnicians(undefined, { enabled: open });
+  const technicians = useAllTechnicians(undefined, { enabled: open });
   const transfer = useTransferTicket();
 
   const query = search.trim().toLowerCase();

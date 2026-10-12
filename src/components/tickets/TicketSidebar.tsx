@@ -16,7 +16,7 @@ import { useRemoveParticipant } from "../../hooks/tickets/useRemoveParticipant";
 import { useCurrentTechnicianId } from "../../hooks/technicians/useCurrentTechnicianId";
 import { useDepartments } from "../../hooks/departments/useDepartments";
 // import { useEmployees } from "../../hooks/employees/useEmployees";
-import { useTechnicians } from "../../hooks/technicians/useTechnicians";
+import { useAllTechnicians } from "../../hooks/technicians/useTechnicians";
 import {
   getApiErrorMessage,
   getInvalidTransitionAllowed,
@@ -472,7 +472,7 @@ function AddParticipantButton({
   const departments = useDepartments({ enabled: open });
   const listEnabled = open && !!departmentId;
   // const employees = useEmployees(departmentId, { enabled: listEnabled && kind === "employees" });
-  const technicians = useTechnicians(departmentId, { enabled: listEnabled });
+  const technicians = useAllTechnicians(departmentId, { enabled: listEnabled });
   const add = useAddParticipant();
 
   // const source = kind === "employees" ? employees : technicians;

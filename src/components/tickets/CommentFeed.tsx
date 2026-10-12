@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useMe } from "../../hooks/auth/useMe";
+import { Pagination } from "../common/pagination/Pagination";
 import { useAddComment } from "../../hooks/tickets/useAddComment";
 import { useTicketComments } from "../../hooks/tickets/useTicketComments";
 import { toastApiError } from "../../lib/apiError";
@@ -71,6 +72,8 @@ export function CommentFeed({ ticketId, isClosed = false, role }: CommentFeedPro
   const [message, setMessage] = useState("");
   const [internalNote, setInternalNote] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const prevLengthRef = useRef(0);
 
   const meData = me.data as (Record<string, unknown> & { email?: string }) | undefined;
   const identity: CurrentIdentity = {
@@ -82,13 +85,30 @@ export function CommentFeed({ ticketId, isClosed = false, role }: CommentFeedPro
     email: meData?.email?.toLowerCase() ?? null,
   };
 
-  const visibleComments = (comments.data ?? []).filter(
+  const visibleComments = comments.data.filter(
     (comment) => role === "technician" || comment.visibility !== "INTERNAL",
   );
 
   useEffect(() => {
+    const prev = prevLengthRef.current;
+    const next = visibleComments.length;
+    prevLengthRef.current = next;
+    if (next <= prev) {
+      return;
+    }
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [visibleComments.length]);
+
+  const handleLoadOlder = () => {
+    const el = scrollRef.current;
+    const prevHeight = el?.scrollHeight ?? 0;
+    comments.loadOlder();
+    requestAnimationFrame(() => {
+      if (el) {
+        el.scrollTop += el.scrollHeight - prevHeight;
+      }
+    });
+  };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -128,7 +148,16 @@ export function CommentFeed({ ticketId, isClosed = false, role }: CommentFeedPro
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-border bg-muted/30">
-      <div className="flex flex-1 flex-col overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="flex flex-1 flex-col overflow-y-auto px-4 py-4">
+        {comments.hasMoreOlder && (
+          <Pagination
+            variant="loadMore"
+            direction="older"
+            hasMore={comments.hasMoreOlder}
+            isFetchingMore={comments.isFetchingOlder}
+            onLoadMore={handleLoadOlder}
+          />
+        )}
         {comments.isLoading && (
           <p className="text-center text-sm text-muted-foreground">Loading messages…</p>
         )}

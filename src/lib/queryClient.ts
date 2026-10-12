@@ -33,8 +33,13 @@ export const queryKeys = {
   },
   tickets: {
     all: ["tickets"] as const,
+    list: (params: Record<string, unknown>) =>
+      ["tickets", "list", params] as const,
+    count: (params: Record<string, unknown>) =>
+      ["tickets", "count", params] as const,
     detail: (id: string) => ["tickets", id] as const,
     comments: (id: string) => ["tickets", id, "comments"] as const,
+    commentsOlder: (id: string) => ["tickets", id, "comments", "older"] as const,
     participants: (id: string) => ["tickets", id, "participants"] as const,
     devices: (id: string) => ["tickets", id, "devices"] as const,
     assignmentHistory: (id: string) =>
@@ -42,21 +47,27 @@ export const queryKeys = {
   },
   employees: {
     all: ["employees"] as const,
-    list: (departmentId?: string) =>
-      ["employees", "list", departmentId ?? "all"] as const,
+    list: (params: Record<string, unknown>) =>
+      ["employees", "list", params] as const,
+    allItems: (departmentId?: string) =>
+      ["employees", "all", departmentId ?? "all"] as const,
   },
   departments: {
     all: ["departments"] as const,
   },
   devices: {
     all: ["devices"] as const,
+    list: (params: Record<string, unknown>) =>
+      ["devices", "list", params] as const,
     mine: ["devices", "mine"] as const,
     detail: (id: string) => ["devices", "detail", id] as const,
   },
   technicians: {
     all: ["technicians"] as const,
-    list: (departmentId?: string) =>
-      ["technicians", "list", departmentId ?? "all"] as const,
+    list: (params: Record<string, unknown>) =>
+      ["technicians", "list", params] as const,
+    allItems: (departmentId?: string) =>
+      ["technicians", "all", departmentId ?? "all"] as const,
     availability: ["technicians", "me", "availability"] as const,
   },
   categories: {
@@ -64,12 +75,20 @@ export const queryKeys = {
   },
   notifications: {
     all: ["notifications"] as const,
-    list: (page?: number) => ["notifications", "list", page ?? 1] as const,
+    list: (params: Record<string, unknown>) =>
+      ["notifications", "list", params] as const,
     unread: ["notifications", "unread-count"] as const,
   },
   chat: {
     all: ["chat"] as const,
-    conversations: ["chat", "conversations"] as const,
-    messages: (id: string) => ["chat", "conversations", id, "messages"] as const,
+    conversations: (params: Record<string, unknown>) =>
+      ["chat", "conversations", params] as const,
+    messages: (id: string, params: Record<string, unknown>) =>
+      ["chat", "conversations", id, "messages", params] as const,
+  },
+  remoteSessions: {
+    all: ["remote-sessions"] as const,
+    list: (params: Record<string, unknown>) =>
+      ["remote-sessions", "list", params] as const,
   },
 } as const;

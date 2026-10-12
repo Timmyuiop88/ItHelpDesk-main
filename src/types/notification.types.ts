@@ -9,11 +9,15 @@ export interface NotificationItem {
   metadata?: Record<string, unknown>;
 }
 
+export interface NotificationListParams {
+  cursor?: string;
+  limit?: number;
+  unread?: boolean;
+}
+
 export interface NotificationListResponse {
   items: NotificationItem[];
-  total?: number;
-  page?: number;
-  limit?: number;
+  nextCursor?: string | null;
 }
 
 export interface UnreadCountResponse {

@@ -1,9 +1,9 @@
 import { useMe } from "../auth/useMe";
-import { useTechnicians } from "./useTechnicians";
+import { useAllTechnicians } from "./useTechnicians";
 
 export function useCurrentTechnicianId(): string | null {
   const me = useMe();
-  const technicians = useTechnicians();
+  const technicians = useAllTechnicians();
   const userId = me.data?.id;
 
   if (!userId || !technicians.data) {

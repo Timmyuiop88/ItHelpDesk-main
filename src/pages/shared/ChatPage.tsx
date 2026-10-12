@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Pagination } from "../../components/common/pagination/Pagination";
+import { infinitePropsFromPaged } from "../../components/common/pagination/paginationAdapters";
 import { RefreshButton } from "../../components/common/RefreshButton";
 import {
   useChatConversations,
@@ -15,10 +17,20 @@ import { useChatSocket } from "../../hooks/chat/useChatSocket";
 import { useMe } from "../../hooks/auth/useMe";
 import { getApiErrorMessage } from "../../lib/apiError";
 import { fullName } from "../../lib/format";
-import type { ChatMessage } from "../../types/chat.types";
+import type { ChatConversation, ChatMessage } from "../../types/chat.types";
 
-function conversationTitle(name: string | undefined, fallback: string): string {
-  return name && name.trim().length > 0 ? name : fallback;
+function conversationTitle(conv: ChatConversation, myId: string | undefined): string {
+  if (conv.title && conv.title.trim().length > 0) {
+    return conv.title;
+  }
+  const others = (conv.participants ?? []).filter(
+    (p) => (p.userId ?? p.user?.id) !== myId,
+  );
+  const names = others
+    .map((p) => fullName(p.user) || p.user?.email)
+    .filter(Boolean)
+    .join(", ");
+  return names || "Conversation";
 }
 
 function messageAuthor(message: ChatMessage): string {
@@ -34,14 +46,15 @@ export function ChatPage() {
   const markRead = useMarkChatRead();
   const [body, setBody] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useChatSocket(selectedId);
 
   useEffect(() => {
-    if (!selectedId && conversations.data?.[0]?.id) {
-      setSelectedId(conversations.data[0].id);
+    if (!selectedId && conversations.items[0]?.id) {
+      setSelectedId(conversations.items[0].id);
     }
-  }, [conversations.data, selectedId]);
+  }, [conversations.items, selectedId]);
 
   useEffect(() => {
     if (selectedId) {
@@ -52,7 +65,18 @@ export function ChatPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.data]);
+  }, [messages.items.length, selectedId]);
+
+  const handleLoadOlder = () => {
+    const el = scrollRef.current;
+    const prevHeight = el?.scrollHeight ?? 0;
+    messages.loadMore();
+    requestAnimationFrame(() => {
+      if (el) {
+        el.scrollTop += el.scrollHeight - prevHeight;
+      }
+    });
+  };
 
   const myId = me.data?.id;
 
@@ -70,8 +94,8 @@ export function ChatPage() {
     );
   };
 
-  const list = conversations.data ?? [];
-  const messageItems = messages.data?.items ?? [];
+  const list = conversations.items;
+  const messageItems = messages.items;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
@@ -98,13 +122,7 @@ export function ChatPage() {
               <p className="p-3 text-xs text-muted-foreground">Loading…</p>
             )}
             {list.map((conv) => {
-              const title =
-                conv.title ||
-                conv.participants
-                  ?.map((p) => fullName(p))
-                  .filter(Boolean)
-                  .join(", ") ||
-                "Conversation";
+              const title = conversationTitle(conv, myId);
               return (
                 <button
                   key={conv.id}
@@ -115,7 +133,7 @@ export function ChatPage() {
                   }`}
                 >
                   <span className="flex items-center justify-between gap-2 font-medium">
-                    {conversationTitle(title, conv.id.slice(0, 8))}
+                    {title}
                     {(conv.unreadCount ?? 0) > 0 && (
                       <Badge variant="secondary" className="h-5 min-w-5 justify-center px-1">
                         {conv.unreadCount}
@@ -136,6 +154,7 @@ export function ChatPage() {
                 <p className="text-xs">No conversations yet.</p>
               </div>
             )}
+            <Pagination variant="infinite" {...infinitePropsFromPaged(conversations)} />
           </div>
         </aside>
 
@@ -146,7 +165,16 @@ export function ChatPage() {
             </div>
           ) : (
             <>
-              <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+                {messages.hasMore && (
+                  <Pagination
+                    variant="loadMore"
+                    direction="older"
+                    hasMore={messages.hasMore}
+                    isFetchingMore={messages.isFetchingMore}
+                    onLoadMore={handleLoadOlder}
+                  />
+                )}
                 {messages.isLoading && (
                   <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
                 )}

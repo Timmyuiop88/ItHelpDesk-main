@@ -41,10 +41,20 @@ export function CommentThread({
       {comments.isError && (
         <p className="text-sm text-destructive">Failed to load comments.</p>
       )}
-      {comments.data?.length === 0 && (
+      {comments.hasMoreOlder && (
+        <button
+          type="button"
+          className="text-sm text-primary hover:underline"
+          disabled={comments.isFetchingOlder}
+          onClick={() => comments.loadOlder()}
+        >
+          {comments.isFetchingOlder ? "Loading…" : "Load older"}
+        </button>
+      )}
+      {comments.data.length === 0 && !comments.isLoading && (
         <p className="text-sm text-muted-foreground">No comments yet.</p>
       )}
-      {comments.data?.map((comment) => {
+      {comments.data.map((comment) => {
         const author = getCommentAuthor(comment);
         const mine = !!currentUserId && getCommentAuthorId(comment) === currentUserId;
         return (

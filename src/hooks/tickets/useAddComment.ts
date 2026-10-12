@@ -14,7 +14,10 @@ export function useAddComment() {
       ticketService.addComment(id, payload),
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.tickets.comments(variables.id),
+        queryKey: queryKeys.tickets.detail(variables.id),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.tickets.commentsOlder(variables.id),
       });
     },
   });

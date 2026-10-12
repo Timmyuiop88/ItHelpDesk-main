@@ -2,6 +2,9 @@ import { Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "../../common/pagination/Pagination";
+import { pagedProps } from "../../common/pagination/paginationAdapters";
+import type { PagedQueryResult } from "../../../hooks/common/usePagedQuery";
 import { formatRelative } from "../../../lib/format";
 import {
   initials,
@@ -9,20 +12,27 @@ import {
   priorityMeta,
   STATUS_META,
 } from "../../../lib/ticketDisplay";
-import { inboxTitle, type InboxFilters, type InboxSort } from "../../../lib/ticketInbox";
+import { inboxTitle, type InboxFilters } from "../../../lib/ticketInbox";
 import { getAssigneeId, getRequesterName, ticketLabel } from "../../../lib/tickets";
 import type { Ticket } from "../../../types/ticket.types";
+import type { PageSizeOption } from "../../../types/pagination.types";
 
 interface InboxTicketListProps {
   tickets: Ticket[];
   filters: InboxFilters;
+  totalCount?: number;
+  pagedQuery?: PagedQueryResult<Ticket>;
+  page: number;
+  limit: PageSizeOption;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (limit: PageSizeOption) => void;
   selectedId?: string | null;
   currentTechnicianId?: string | null;
   isLoading?: boolean;
+  isError?: boolean;
   onSelect: (ticketId: string) => void;
   onFiltersChange: (patch: Partial<InboxFilters>) => void;
   onRowClickNavigate?: (ticketId: string) => void;
-  /** Rendered next to the search input, e.g. a filter button. */
   searchAction?: ReactNode;
   className?: string;
 }
@@ -30,9 +40,16 @@ interface InboxTicketListProps {
 export function InboxTicketList({
   tickets,
   filters,
+  totalCount,
+  pagedQuery,
+  page,
+  limit,
+  onPageChange,
+  onPageSizeChange,
   selectedId = null,
   currentTechnicianId = null,
   isLoading = false,
+  isError = false,
   onSelect,
   onFiltersChange,
   onRowClickNavigate,
@@ -47,13 +64,15 @@ export function InboxTicketList({
     onSelect(ticketId);
   };
 
+  const countLabel = totalCount ?? tickets.length;
+
   return (
     <section className={`flex h-full flex-col bg-background ${className}`}>
       <header className="shrink-0 space-y-2 border-b border-border px-3 py-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="truncate text-sm font-semibold">{inboxTitle(filters)}</h2>
           <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-            {tickets.length}
+            {countLabel}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -68,6 +87,7 @@ export function InboxTicketList({
           </div>
           {searchAction}
         </div>
+        {/* Client-side sort (no API param):
         <select
           className="h-8 w-full rounded-lg border border-input bg-background px-2 text-xs"
           value={filters.sort}
@@ -77,13 +97,19 @@ export function InboxTicketList({
           <option value="newest">Newest</option>
           <option value="priority">Priority</option>
         </select>
+        */}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {isLoading && (
           <p className="p-4 text-center text-sm text-muted-foreground">Loading tickets…</p>
         )}
-        {!isLoading && tickets.length === 0 && (
+        {isError && !isLoading && (
+          <p className="p-6 text-center text-sm text-muted-foreground">
+            Couldn&apos;t load this list. Try again.
+          </p>
+        )}
+        {!isLoading && !isError && tickets.length === 0 && (
           <p className="p-6 text-center text-sm text-muted-foreground">
             No tickets match these filters.
           </p>
@@ -141,7 +167,7 @@ export function InboxTicketList({
                 {assignedToMe && (
                   <Badge
                     variant="outline"
-                    className="h-4 border-blue-300 bg-blue-50 px-1.5 text-[9px] text-blue-700"
+                    className="h-4 border-primary/30 bg-primary/10 px-1.5 text-[9px] text-primary"
                   >
                     Assigned to you
                   </Badge>
@@ -156,6 +182,19 @@ export function InboxTicketList({
           );
         })}
       </div>
+
+      {pagedQuery && (
+        <Pagination
+          variant="pages"
+          compact
+          {...pagedProps(pagedQuery, {
+            page,
+            limit,
+            onPageChange,
+            onPageSizeChange,
+          })}
+        />
+      )}
     </section>
   );
 }

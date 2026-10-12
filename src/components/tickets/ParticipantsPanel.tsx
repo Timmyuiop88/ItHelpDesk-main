@@ -14,7 +14,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { useDepartments } from "../../hooks/departments/useDepartments";
 // import { useEmployees } from "../../hooks/employees/useEmployees";
-import { useTechnicians } from "../../hooks/technicians/useTechnicians";
+import { useAllTechnicians } from "../../hooks/technicians/useTechnicians";
 import { useAddParticipant } from "../../hooks/tickets/useAddParticipant";
 import { useRemoveParticipant } from "../../hooks/tickets/useRemoveParticipant";
 import { useTicketParticipants } from "../../hooks/tickets/useTicketParticipants";
@@ -155,7 +155,7 @@ function AddParticipantDialog({
   // const employees = useEmployees(departmentId, {
   //   enabled: listEnabled && kind === "employees",
   // });
-  const technicians = useTechnicians(departmentId, {
+  const technicians = useAllTechnicians(departmentId, {
     enabled: listEnabled,
   });
   const add = useAddParticipant();

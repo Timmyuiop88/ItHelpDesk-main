@@ -1,23 +1,26 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../../lib/queryClient";
 import { notificationService } from "../../services/notification.service";
+import { useCursorQuery } from "../common/useCursorQuery";
+
+const NOTIFICATION_LIMIT = 30;
 
 export function useNotifications() {
-  return useInfiniteQuery({
-    queryKey: queryKeys.notifications.all,
-    queryFn: ({ pageParam }) =>
-      notificationService.list({ page: pageParam, limit: 20 }),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) => {
-      const page = lastPage.page ?? 1;
-      const limit = lastPage.limit ?? 20;
-      const total = lastPage.total ?? lastPage.items.length;
-      if (page * limit >= total) {
-        return undefined;
-      }
-      return page + 1;
-    },
+  const [unreadOnly, setUnreadOnly] = useState(false);
+
+  const query = useCursorQuery({
+    queryKey: queryKeys.notifications.list({ unread: unreadOnly }),
+    queryFn: ({ cursor, limit, signal }) =>
+      notificationService.list({ cursor, limit, unread: unreadOnly || undefined }, signal),
+    limit: NOTIFICATION_LIMIT,
   });
+
+  return {
+    ...query,
+    unreadOnly,
+    setUnreadOnly,
+  };
 }
 
 export function useUnreadNotificationCount() {
@@ -35,7 +38,6 @@ export function useMarkNotificationRead() {
     mutationFn: (id: string) => notificationService.markRead(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unread });
     },
   });
 }
@@ -46,7 +48,6 @@ export function useMarkAllNotificationsRead() {
     mutationFn: () => notificationService.markAllRead(),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unread });
     },
   });
 }

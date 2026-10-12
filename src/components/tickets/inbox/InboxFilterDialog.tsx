@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useCategories } from "../../../hooks/categories/useCategories";
 import {
   ALL_TICKET_STATUSES,
   PRIORITY_META,
@@ -18,7 +19,6 @@ import {
 import {
   activeFilterCount,
   ALL_INBOX_VIEWS,
-  toggleValue,
   viewLabel,
   type InboxCounts,
   type InboxFilters,
@@ -26,34 +26,44 @@ import {
 
 type FilterSelection = Pick<
   InboxFilters,
-  "views" | "statuses" | "priorities" | "categoryIds" | "emailOnly"
+  "view" | "status" | "priority" | "categoryId"
 >;
 
 const EMPTY_SELECTION: FilterSelection = {
-  views: [],
-  statuses: [],
-  priorities: [],
-  categoryIds: [],
-  emailOnly: false,
+  view: "all",
 };
 
 interface InboxFilterDialogProps {
   filters: InboxFilters;
-  counts: InboxCounts;
+  counts: InboxCounts | undefined;
   onApply: (selection: FilterSelection) => void;
 }
 
 function pickSelection(filters: InboxFilters): FilterSelection {
   return {
-    views: filters.views,
-    statuses: filters.statuses,
-    priorities: filters.priorities,
-    categoryIds: filters.categoryIds,
-    emailOnly: filters.emailOnly,
+    view: filters.view,
+    status: filters.status,
+    priority: filters.priority,
+    categoryId: filters.categoryId,
   };
 }
 
-function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
+function selectionActiveCount(draft: FilterSelection): number {
+  let n = 0;
+  if (draft.view !== "all") n += 1;
+  if (draft.status) n += 1;
+  if (draft.priority) n += 1;
+  if (draft.categoryId) n += 1;
+  return n;
+}
+
+function FilterGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
   return (
     <fieldset className="flex flex-col gap-1">
       <legend className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -64,17 +74,19 @@ function FilterGroup({ title, children }: { title: string; children: ReactNode }
   );
 }
 
-function FilterOption({
+function RadioOption({
+  name,
   label,
   count,
   checked,
-  onToggle,
+  onSelect,
   dotClass,
 }: {
+  name: string;
   label: string;
-  count: number;
+  count?: number;
   checked: boolean;
-  onToggle: () => void;
+  onSelect: () => void;
   dotClass?: string;
 }) {
   return (
@@ -84,23 +96,35 @@ function FilterOption({
       }`}
     >
       <input
-        type="checkbox"
+        type="radio"
+        name={name}
         checked={checked}
-        onChange={onToggle}
+        onChange={onSelect}
         className="size-3.5 shrink-0 accent-primary"
       />
-      {dotClass && <span className={`size-2 shrink-0 rounded-full ${dotClass}`} aria-hidden />}
+      {dotClass && (
+        <span className={`size-2 shrink-0 rounded-full ${dotClass}`} aria-hidden />
+      )}
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{count}</span>
+      {count !== undefined && (
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+          {count}
+        </span>
+      )}
     </label>
   );
 }
 
-export function InboxFilterDialog({ filters, counts, onApply }: InboxFilterDialogProps) {
+export function InboxFilterDialog({
+  filters,
+  counts,
+  onApply,
+}: InboxFilterDialogProps) {
+  const categories = useCategories();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<FilterSelection>(() => pickSelection(filters));
   const appliedCount = activeFilterCount(filters);
-  const draftCount = activeFilterCount({ ...filters, ...draft });
+  const draftCount = selectionActiveCount(draft);
 
   const handleOpenChange = (next: boolean) => {
     if (next) setDraft(pickSelection(filters));
@@ -133,75 +157,87 @@ export function InboxFilterDialog({ filters, counts, onApply }: InboxFilterDialo
         <DialogHeader>
           <DialogTitle>Filter tickets</DialogTitle>
           <DialogDescription>
-            Pick as many options as you like. A ticket shows if it matches any option in each
-            group you use.
+            Choose one option per group. Filters apply on the server.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid max-h-[60vh] gap-5 overflow-y-auto sm:grid-cols-2">
           <FilterGroup title="Assignment">
             {ALL_INBOX_VIEWS.map((view) => (
-              <FilterOption
+              <RadioOption
                 key={view}
+                name="assignment"
                 label={viewLabel(view)}
-                count={counts.views[view]}
-                checked={draft.views.includes(view)}
-                onToggle={() => setDraft((d) => ({ ...d, views: toggleValue(d.views, view) }))}
+                count={counts?.views[view]}
+                checked={draft.view === view}
+                onSelect={() => setDraft((d) => ({ ...d, view }))}
               />
             ))}
           </FilterGroup>
 
           <FilterGroup title="Status">
+            <RadioOption
+              name="status"
+              label="Any status"
+              checked={!draft.status}
+              onSelect={() => setDraft((d) => ({ ...d, status: undefined }))}
+            />
             {ALL_TICKET_STATUSES.map((status) => (
-              <FilterOption
+              <RadioOption
                 key={status}
+                name="status"
                 label={STATUS_META[status].label}
-                count={counts.statuses[status]}
+                count={counts?.statuses[status]}
                 dotClass={STATUS_META[status].dotClass}
-                checked={draft.statuses.includes(status)}
-                onToggle={() =>
-                  setDraft((d) => ({ ...d, statuses: toggleValue(d.statuses, status) }))
-                }
+                checked={draft.status === status}
+                onSelect={() => setDraft((d) => ({ ...d, status }))}
               />
             ))}
           </FilterGroup>
 
           <FilterGroup title="Priority">
+            <RadioOption
+              name="priority"
+              label="Any priority"
+              checked={!draft.priority}
+              onSelect={() => setDraft((d) => ({ ...d, priority: undefined }))}
+            />
             {(["HIGH", "MEDIUM", "LOW"] as const).map((priority) => (
-              <FilterOption
+              <RadioOption
                 key={priority}
+                name="priority"
                 label={PRIORITY_META[priority].label}
-                count={counts.priorities[priority] ?? 0}
-                checked={draft.priorities.includes(priority)}
-                onToggle={() =>
-                  setDraft((d) => ({ ...d, priorities: toggleValue(d.priorities, priority) }))
-                }
+                count={counts?.priorities[priority] ?? 0}
+                checked={draft.priority === priority}
+                onSelect={() => setDraft((d) => ({ ...d, priority }))}
               />
             ))}
           </FilterGroup>
 
-          <FilterGroup title="Category and source">
-            {counts.categories.length === 0 && (
-              <p className="px-2 py-1 text-xs text-muted-foreground">No categories yet</p>
-            )}
-            {counts.categories.map((cat) => (
-              <FilterOption
+          <FilterGroup title="Category">
+            <RadioOption
+              name="category"
+              label="Any category"
+              checked={!draft.categoryId}
+              onSelect={() => setDraft((d) => ({ ...d, categoryId: undefined }))}
+            />
+            {(categories.data ?? []).map((cat) => (
+              <RadioOption
                 key={cat.id}
+                name="category"
                 label={cat.name}
-                count={cat.count}
-                checked={draft.categoryIds.includes(cat.id)}
-                onToggle={() =>
-                  setDraft((d) => ({ ...d, categoryIds: toggleValue(d.categoryIds, cat.id) }))
-                }
+                checked={draft.categoryId === cat.id}
+                onSelect={() => setDraft((d) => ({ ...d, categoryId: cat.id }))}
               />
             ))}
-            <FilterOption
-              label="Via email"
-              count={counts.email}
-              checked={draft.emailOnly}
-              onToggle={() => setDraft((d) => ({ ...d, emailOnly: !d.emailOnly }))}
-            />
           </FilterGroup>
+
+          {/* Multi-select and email filter (no API support):
+          <FilterGroup title="Category and source">
+            ...
+            <FilterOption label="Via email" ... />
+          </FilterGroup>
+          */}
         </div>
 
         <DialogFooter className="sm:justify-between">

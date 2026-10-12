@@ -12,22 +12,21 @@ import { RefreshButton } from "../../components/common/RefreshButton";
 import { useDeviceAgentState } from "../../components/DeviceAgentContext";
 import { DeviceStatusBadge } from "../../components/devices/DeviceStatusBadge";
 import { useMe } from "../../hooks/auth/useMe";
-import { useTickets } from "../../hooks/tickets/useTickets";
+import { useTicketCounts } from "../../hooks/tickets/useTickets";
 
 export function DashboardPage() {
   const me = useMe();
-  const tickets = useTickets();
+  const counts = useTicketCounts();
   const agent = useDeviceAgentState();
   const navigate = useNavigate();
-  
+
   const openCount =
-    tickets.data?.filter((ticket) => ticket.status === "OPEN" || ticket.status === "IN_PROGRESS"  || ticket.status === "WAITING_FOR_EMPLOYEE").length ?? 0;
+    (counts.data?.statuses.OPEN ?? 0) +
+    (counts.data?.statuses.IN_PROGRESS ?? 0) +
+    (counts.data?.statuses.WAITING_FOR_EMPLOYEE ?? 0);
 
   const handleRefresh = async () => {
-    await Promise.all([
-      me.refetch(),
-      tickets.refetch(),
-    ]);
+    await me.refetch();
     agent.reregister();
   };
 

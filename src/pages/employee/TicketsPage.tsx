@@ -28,13 +28,19 @@ import {
   createTicketSuccessMessage,
   useCreateTicket,
 } from "../../hooks/tickets/useCreateTicket";
-import { useTickets } from "../../hooks/tickets/useTickets";
+import { Pagination } from "../../components/common/pagination/Pagination";
+import { pagedProps } from "../../components/common/pagination/paginationAdapters";
+import { usePaginationState } from "../../hooks/common/usePaginationState";
+import { useTicketList } from "../../hooks/tickets/useTickets";
 import { getApiErrorMessage } from "../../lib/apiError";
 
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
 
 export function TicketsPage() {
-  const tickets = useTickets();
+  const { page, limit, setPage, setLimit } = usePaginationState();
+  const tickets = useTicketList({}, page, limit, {
+    onEmptyPastEnd: (totalPages) => setPage(totalPages),
+  });
   const createTicket = useCreateTicket();
   const categories = useCategories();
   const agent = useDeviceAgentState();
@@ -164,11 +170,11 @@ export function TicketsPage() {
 
       {tickets.isLoading && <p className="text-sm">Loading tickets...</p>}
       {tickets.isError && (
-        <p className="text-sm text-destructive">Failed to load tickets.</p>
+        <p className="text-sm text-muted-foreground">Couldn&apos;t load this list. Try again.</p>
       )}
 
       <div className="flex flex-col gap-3">
-        {tickets.data?.map((ticket) => (
+        {tickets.items.map((ticket) => (
           <Card 
             key={ticket.id} 
             className="cursor-pointer transition-all hover:border-primary/60 hover:shadow-md group"
@@ -195,7 +201,7 @@ export function TicketsPage() {
             </CardContent>
           </Card>
         ))}
-        {tickets.data?.length === 0 && (
+        {!tickets.isLoading && tickets.items.length === 0 && (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed p-8 text-center animate-in fade-in-50">
             <div className="flex size-12 items-center justify-center rounded-full bg-muted mb-4">
               <svg className="size-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -210,6 +216,18 @@ export function TicketsPage() {
           </div>
         )}
       </div>
+
+      {tickets.meta && (
+        <Pagination
+          variant="pages"
+          {...pagedProps(tickets, {
+            page,
+            limit,
+            onPageChange: setPage,
+            onPageSizeChange: setLimit,
+          })}
+        />
+      )}
     </div>
   );
 }

@@ -121,8 +121,12 @@ apiClient.interceptors.response.use(
 export async function apiGet<T>(
   url: string,
   params?: Record<string, unknown>,
+  options?: { signal?: AbortSignal },
 ): Promise<T> {
-  const response = await apiClient.get<T>(url, { params });
+  const response = await apiClient.get<T>(url, {
+    params,
+    signal: options?.signal,
+  });
   return response.data;
 }
 

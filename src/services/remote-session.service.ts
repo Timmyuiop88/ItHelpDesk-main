@@ -1,5 +1,7 @@
 import { apiGet, apiPatch, apiPost } from "../api/config";
 import { ENDPOINTS } from "../api/endpoints";
+import { cleanParams } from "../lib/pagination";
+import type { Page } from "../types/pagination.types";
 import type {
   ApproveSessionResponse,
   ConnectionResponse,
@@ -10,7 +12,20 @@ import type {
   StartSessionPayload,
 } from "../types/remote-session.types";
 
+export interface RemoteSessionListParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  ticketId?: string;
+}
+
 export const remoteSessionService = {
+  list: (params: RemoteSessionListParams = {}, signal?: AbortSignal) =>
+    apiGet<Page<RemoteSession>>(
+      ENDPOINTS.remoteSessions.base,
+      cleanParams(params as Record<string, unknown>),
+      { signal },
+    ),
   getById: (id: string) =>
     apiGet<RemoteSession>(ENDPOINTS.remoteSessions.byId(id)),
   create: (payload: CreateRemoteSessionPayload) =>

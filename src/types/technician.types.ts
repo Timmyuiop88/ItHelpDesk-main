@@ -10,6 +10,8 @@ export interface Technician {
   department?: DepartmentRef | null;
   available?: boolean;
   awayUntil?: string | null;
+  activeTicketCount?: number;
+  autoAssignCap?: number;
 }
 
 export interface TechnicianAvailabilityPayload {

@@ -8,6 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Pagination } from "../../components/common/pagination/Pagination";
+import { pagedProps } from "../../components/common/pagination/paginationAdapters";
 import { RefreshButton } from "../../components/common/RefreshButton";
 import { DeviceIssueNotice } from "../../components/devices/DeviceIssueNotice";
 import { DeviceStatusBadge } from "../../components/devices/DeviceStatusBadge";
@@ -22,7 +24,7 @@ export function DevicesPage() {
   // The technician's own devices are in "My devices"; this list is for the
   // devices of people whose tickets they're working on.
   const ticketDevices =
-    devices.data?.filter((device) => device.access !== "OWNED") ?? [];
+    devices.items.filter((device) => device.access !== "OWNED") ?? [];
 
   const handleRefresh = async () => {
     await Promise.all([
@@ -55,7 +57,7 @@ export function DevicesPage() {
           {devices.isError && (
             <p className="text-sm text-destructive">Failed to load devices.</p>
           )}
-          {devices.data && ticketDevices.length === 0 && (
+          {!devices.isLoading && ticketDevices.length === 0 && (
             <p className="text-sm text-muted-foreground">
               No devices yet. Take a ticket and the employee's computers will
               show up here.
@@ -99,6 +101,18 @@ export function DevicesPage() {
             </div>
           ))}
         </CardContent>
+        {devices.meta && (
+          <Pagination
+            variant="pages"
+            compact
+            {...pagedProps(devices, {
+              page: devices.page,
+              limit: devices.limit,
+              onPageChange: devices.setPage,
+              onPageSizeChange: devices.setLimit,
+            })}
+          />
+        )}
       </Card>
     </div>
   );

@@ -1,5 +1,7 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPostWithHeaders } from "../api/config";
 import { ENDPOINTS } from "../api/endpoints";
+import { cleanParams } from "../lib/pagination";
+import type { Page } from "../types/pagination.types";
 import type { TicketDevicesResponse } from "../types/device.types";
 import type {
   AddParticipantPayload,
@@ -9,13 +11,21 @@ import type {
   Ticket,
   TicketAssignmentHistoryEntry,
   TicketComment,
+  TicketCommentsParams,
+  TicketListParams,
   TicketParticipant,
   TransferTicketPayload,
   UpdateTicketPayload,
 } from "../types/ticket.types";
 
 export const ticketService = {
-  getAll: () => apiGet<Ticket[]>(ENDPOINTS.tickets.base),
+  // getAll: () => apiGet<Ticket[]>(ENDPOINTS.tickets.base),
+  list: (params: TicketListParams, signal?: AbortSignal) =>
+    apiGet<Page<Ticket>>(
+      ENDPOINTS.tickets.base,
+      cleanParams(params as Record<string, unknown>),
+      { signal },
+    ),
   getById: (id: string) => apiGet<Ticket>(ENDPOINTS.tickets.byId(id)),
   create: (payload: CreateTicketPayload, idempotencyKey: string) =>
     apiPostWithHeaders<Ticket, CreateTicketPayload>(
@@ -45,8 +55,16 @@ export const ticketService = {
     ),
   getDevices: (id: string) =>
     apiGet<TicketDevicesResponse>(ENDPOINTS.tickets.devices(id)),
-  getComments: (id: string) =>
-    apiGet<TicketComment[]>(ENDPOINTS.tickets.comments(id)),
+  getComments: (
+    id: string,
+    params?: TicketCommentsParams,
+    signal?: AbortSignal,
+  ) =>
+    apiGet<Page<TicketComment>>(
+      ENDPOINTS.tickets.comments(id),
+      cleanParams((params ?? {}) as Record<string, unknown>),
+      { signal },
+    ),
   addComment: (id: string, payload: CreateCommentPayload) =>
     apiPost<TicketComment, CreateCommentPayload>(
       ENDPOINTS.tickets.comments(id),
