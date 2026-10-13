@@ -67,7 +67,7 @@ export function ServerSetupPage({ onConfigured }: ServerSetupPageProps) {
   };
 
   return (
-    <AuthBackground videoSrc="auth.mov">
+    <AuthBackground>
       <Card className="w-full max-w-md border-white/20 bg-white/95 shadow-2xl backdrop-blur-sm">
         <CardHeader className="items-center text-center">
           <BrandMark size="lg" subtitle="IT Support Desk" className="mb-2 flex-col items-center text-center" />

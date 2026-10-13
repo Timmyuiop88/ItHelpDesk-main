@@ -14,7 +14,7 @@ export function UnauthorizedPage() {
   const logout = useLogout();
 
   return (
-    <AuthBackground videoSrc="auth.mov">
+    <AuthBackground>
       <Card className="w-full max-w-md border-white/20 bg-white/95 shadow-2xl backdrop-blur-sm">
         <CardHeader>
           <BrandMark className="mb-4" subtitle="IT Support Desk" />

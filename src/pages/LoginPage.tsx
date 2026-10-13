@@ -77,7 +77,7 @@ export function LoginPage() {
   };
 
   return (
-    <AuthBackground videoSrc="auth.mov">
+    <AuthBackground>
       <Card className="w-full max-w-md border-white/20 bg-white/95 shadow-2xl backdrop-blur-sm">
         <CardHeader className="items-center text-center">
           <BrandMark
