@@ -64,6 +64,20 @@ export interface TicketListParams {
   q?: string;
 }
 
+export type TicketPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+/** Same filters as the list, without paging (sending page/limit to /counts is a 400). */
+export type TicketFilterParams = Omit<TicketListParams, "page" | "limit">;
+
+/** Facet counts: each group ignores its own filter but applies all the others. */
+export interface TicketCounts {
+  total: number;
+  assignment: { all: number; me: number; unassigned: number };
+  status: Record<TicketStatus, number>;
+  priority: Record<TicketPriority, number>;
+  categories: { id: string | null; count: number }[];
+}
+
 export interface TicketCommentsParams {
   page?: number;
   limit?: number;

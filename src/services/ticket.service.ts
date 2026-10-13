@@ -12,6 +12,8 @@ import type {
   TicketAssignmentHistoryEntry,
   TicketComment,
   TicketCommentsParams,
+  TicketCounts,
+  TicketFilterParams,
   TicketListParams,
   TicketParticipant,
   TransferTicketPayload,
@@ -24,6 +26,19 @@ export const ticketService = {
     apiGet<Page<Ticket>>(
       ENDPOINTS.tickets.base,
       cleanParams(params as Record<string, unknown>),
+      { signal },
+    ),
+  /** Every ticket in the system (technicians and admins only; employees get 403). */
+  listAll: (params: TicketListParams, signal?: AbortSignal) =>
+    apiGet<Page<Ticket>>(
+      ENDPOINTS.tickets.all,
+      cleanParams(params as Record<string, unknown>),
+      { signal },
+    ),
+  countsAll: (filters: TicketFilterParams, signal?: AbortSignal) =>
+    apiGet<TicketCounts>(
+      ENDPOINTS.tickets.allCounts,
+      cleanParams(filters as Record<string, unknown>),
       { signal },
     ),
   getById: (id: string) => apiGet<Ticket>(ENDPOINTS.tickets.byId(id)),

@@ -37,6 +37,10 @@ export const queryKeys = {
       ["tickets", "list", params] as const,
     count: (params: Record<string, unknown>) =>
       ["tickets", "count", params] as const,
+    everyList: (params: Record<string, unknown>) =>
+      ["tickets", "every", "list", params] as const,
+    everyCounts: (params: Record<string, unknown>) =>
+      ["tickets", "every", "counts", params] as const,
     detail: (id: string) => ["tickets", id] as const,
     comments: (id: string) => ["tickets", id, "comments"] as const,
     commentsOlder: (id: string) => ["tickets", id, "comments", "older"] as const,

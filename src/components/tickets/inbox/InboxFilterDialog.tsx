@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { useCategories } from "../../../hooks/categories/useCategories";
 import {
+  ALL_TICKET_PRIORITIES,
   ALL_TICKET_STATUSES,
   PRIORITY_META,
   STATUS_META,
@@ -19,10 +20,11 @@ import {
 import {
   activeFilterCount,
   ALL_INBOX_VIEWS,
+  countFor,
   viewLabel,
-  type InboxCounts,
   type InboxFilters,
 } from "../../../lib/ticketInbox";
+import type { TicketCounts } from "../../../types/ticket.types";
 
 type FilterSelection = Pick<
   InboxFilters,
@@ -35,8 +37,10 @@ const EMPTY_SELECTION: FilterSelection = {
 
 interface InboxFilterDialogProps {
   filters: InboxFilters;
-  counts: InboxCounts | undefined;
+  /** Facet counts for the *applied* filters, so numbers stay put while the user edits the draft. */
+  counts: TicketCounts | undefined;
   onApply: (selection: FilterSelection) => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
 function pickSelection(filters: InboxFilters): FilterSelection {
@@ -119,21 +123,24 @@ export function InboxFilterDialog({
   filters,
   counts,
   onApply,
+  onOpenChange,
 }: InboxFilterDialogProps) {
   const categories = useCategories();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<FilterSelection>(() => pickSelection(filters));
   const appliedCount = activeFilterCount(filters);
   const draftCount = selectionActiveCount(draft);
+  const uncategorized = counts?.categories.find((c) => c.id === null)?.count ?? 0;
 
   const handleOpenChange = (next: boolean) => {
     if (next) setDraft(pickSelection(filters));
     setOpen(next);
+    onOpenChange?.(next);
   };
 
   const apply = () => {
     onApply(draft);
-    setOpen(false);
+    handleOpenChange(false);
   };
 
   return (
@@ -168,7 +175,7 @@ export function InboxFilterDialog({
                 key={view}
                 name="assignment"
                 label={viewLabel(view)}
-                count={counts?.views[view]}
+                count={counts && countFor.view(counts, view)}
                 checked={draft.view === view}
                 onSelect={() => setDraft((d) => ({ ...d, view }))}
               />
@@ -179,6 +186,7 @@ export function InboxFilterDialog({
             <RadioOption
               name="status"
               label="Any status"
+              count={counts && countFor.status(counts)}
               checked={!draft.status}
               onSelect={() => setDraft((d) => ({ ...d, status: undefined }))}
             />
@@ -187,7 +195,7 @@ export function InboxFilterDialog({
                 key={status}
                 name="status"
                 label={STATUS_META[status].label}
-                count={counts?.statuses[status]}
+                count={counts && countFor.status(counts, status)}
                 dotClass={STATUS_META[status].dotClass}
                 checked={draft.status === status}
                 onSelect={() => setDraft((d) => ({ ...d, status }))}
@@ -199,15 +207,16 @@ export function InboxFilterDialog({
             <RadioOption
               name="priority"
               label="Any priority"
+              count={counts && countFor.priority(counts)}
               checked={!draft.priority}
               onSelect={() => setDraft((d) => ({ ...d, priority: undefined }))}
             />
-            {(["HIGH", "MEDIUM", "LOW"] as const).map((priority) => (
+            {ALL_TICKET_PRIORITIES.map((priority) => (
               <RadioOption
                 key={priority}
                 name="priority"
                 label={PRIORITY_META[priority].label}
-                count={counts?.priorities[priority] ?? 0}
+                count={counts && countFor.priority(counts, priority)}
                 checked={draft.priority === priority}
                 onSelect={() => setDraft((d) => ({ ...d, priority }))}
               />
@@ -218,6 +227,7 @@ export function InboxFilterDialog({
             <RadioOption
               name="category"
               label="Any category"
+              count={counts && countFor.category(counts)}
               checked={!draft.categoryId}
               onSelect={() => setDraft((d) => ({ ...d, categoryId: undefined }))}
             />
@@ -226,10 +236,17 @@ export function InboxFilterDialog({
                 key={cat.id}
                 name="category"
                 label={cat.name}
+                count={counts && countFor.category(counts, cat.id)}
                 checked={draft.categoryId === cat.id}
                 onSelect={() => setDraft((d) => ({ ...d, categoryId: cat.id }))}
               />
             ))}
+            {uncategorized > 0 && (
+              <p className="flex items-center justify-between px-2 py-1.5 text-xs text-muted-foreground">
+                <span>No category</span>
+                <span className="tabular-nums">{uncategorized}</span>
+              </p>
+            )}
           </FilterGroup>
 
           {/* Multi-select and email filter (no API support):
@@ -249,7 +266,7 @@ export function InboxFilterDialog({
             Clear all
           </Button>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
             <Button onClick={apply}>

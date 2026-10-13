@@ -1,29 +1,32 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import { RefreshButton } from "../../components/common/RefreshButton";
 import { InboxFilterDialog } from "../../components/tickets/inbox/InboxFilterDialog";
 import { InboxTicketList } from "../../components/tickets/inbox/InboxTicketList";
 import { useDebouncedValue } from "../../hooks/common/useDebouncedValue";
 import { usePaginationState } from "../../hooks/common/usePaginationState";
-import { useMe } from "../../hooks/auth/useMe";
 import { useCurrentTechnicianId } from "../../hooks/technicians/useCurrentTechnicianId";
+import { useAssignTicket } from "../../hooks/tickets/useAssignTicket";
 import {
-  useTicketCounts,
-  useTicketList,
+  useAllTicketCounts,
+  useAllTicketList,
 } from "../../hooks/tickets/useTickets";
+import { toastApiError } from "../../lib/apiError";
 import {
   inboxFilterResetKey,
   inboxFiltersToParams,
   parseInboxFilters,
-  toTicketListParams,
+  toTicketFilterParams,
   type InboxFilters,
 } from "../../lib/ticketInbox";
 
 export function DashboardPage() {
-  const me = useMe();
   const technicianId = useCurrentTechnicianId();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const assignTicket = useAssignTicket();
 
   const filters = useMemo(() => parseInboxFilters(searchParams), [searchParams]);
   const debouncedSearch = useDebouncedValue(filters.search, 300);
@@ -34,25 +37,16 @@ export function DashboardPage() {
     resetKey,
   });
 
-  const listParams = useMemo(
-    () => toTicketListParams(filters, page, limit, debouncedSearch),
-    [filters, page, limit, debouncedSearch],
+  const filterParams = useMemo(
+    () => toTicketFilterParams(filters, debouncedSearch),
+    [filters, debouncedSearch],
   );
 
-  const ticketQuery = useTicketList(
-    {
-      status: listParams.status,
-      priority: listParams.priority,
-      categoryId: listParams.categoryId,
-      assignedTo: listParams.assignedTo,
-      q: listParams.q,
-    },
-    page,
-    limit,
-    { onEmptyPastEnd: (totalPages) => setPage(totalPages) },
-  );
+  const ticketQuery = useAllTicketList(filterParams, page, limit, {
+    onEmptyPastEnd: (totalPages) => setPage(totalPages),
+  });
 
-  const countsQuery = useTicketCounts();
+  const countsQuery = useAllTicketCounts(filterParams, filterDialogOpen);
 
   const setFilters = useCallback(
     (patch: Partial<InboxFilters>) => {
@@ -61,6 +55,8 @@ export function DashboardPage() {
           const merged = { ...parseInboxFilters(prev), ...patch };
           const next = inboxFiltersToParams(merged);
           next.set("page", "1");
+          const prevLimit = prev.get("limit");
+          if (prevLimit) next.set("limit", prevLimit);
           return next;
         },
         { replace: true },
@@ -69,20 +65,33 @@ export function DashboardPage() {
     [setSearchParams],
   );
 
-  const applyFilterDialog = useCallback(
-    (selection: Partial<InboxFilters>) => {
-      setFilters(selection);
-    },
-    [setFilters],
-  );
-
   const openTicket = useCallback(
     (ticketId: string) => navigate(`/technician/tickets/${ticketId}`),
     [navigate],
   );
 
+  const takeTicket = useCallback(
+    (ticketId: string) => {
+      if (!technicianId) {
+        toast.error("Your technician profile is still loading. Try again in a moment.");
+        return;
+      }
+      assignTicket.mutate(
+        { id: ticketId, payload: { technicianId } },
+        {
+          onSuccess: () => toast.success("Ticket assigned to you"),
+          onError: (err) => toastApiError(err, "Couldn't take ticket"),
+        },
+      );
+    },
+    [assignTicket, technicianId],
+  );
+
   const handleRefresh = async () => {
-    await Promise.all([me.refetch(), ticketQuery.refetch()]);
+    await Promise.all([
+      ticketQuery.refetch(),
+      filterDialogOpen ? countsQuery.refetch() : Promise.resolve(),
+    ]);
   };
 
   return (
@@ -90,6 +99,9 @@ export function DashboardPage() {
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div>
           <h1 className="text-xl font-semibold">All tickets</h1>
+          <p className="text-sm text-muted-foreground">
+            Every ticket in the system. Take an unassigned one to start working on it.
+          </p>
         </div>
         <RefreshButton onRefresh={handleRefresh} iconOnly />
       </header>
@@ -109,11 +121,14 @@ export function DashboardPage() {
           isError={ticketQuery.isError}
           onSelect={openTicket}
           onFiltersChange={setFilters}
+          onTake={takeTicket}
+          takingId={assignTicket.isPending ? assignTicket.variables?.id ?? null : null}
           searchAction={
             <InboxFilterDialog
               filters={filters}
               counts={countsQuery.data}
-              onApply={applyFilterDialog}
+              onApply={setFilters}
+              onOpenChange={setFilterDialogOpen}
             />
           }
           className="w-full"

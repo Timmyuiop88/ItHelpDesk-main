@@ -1,4 +1,4 @@
-import type { Ticket, TicketStatus } from "../types/ticket.types";
+import type { Ticket, TicketPriority, TicketStatus } from "../types/ticket.types";
 
 export interface StatusMeta {
   label: string;
@@ -57,7 +57,14 @@ export interface PriorityMeta {
   badgeClass: string;
 }
 
+export const ALL_TICKET_PRIORITIES: TicketPriority[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+
 export const PRIORITY_META: Record<string, PriorityMeta> = {
+  CRITICAL: {
+    label: "Critical",
+    badgeClass:
+      "bg-rose-600 text-white border-rose-700 dark:bg-rose-700 dark:text-white dark:border-rose-600",
+  },
   HIGH: {
     label: "High",
     badgeClass:

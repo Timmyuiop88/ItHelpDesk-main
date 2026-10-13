@@ -1,19 +1,21 @@
-import { Search } from "lucide-react";
-import type { ReactNode } from "react";
+import { Loader2, Mail, Search } from "lucide-react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "../../common/pagination/Pagination";
 import { pagedProps } from "../../common/pagination/paginationAdapters";
 import type { PagedQueryResult } from "../../../hooks/common/usePagedQuery";
 import { formatRelative } from "../../../lib/format";
-import {
-  initials,
-  lastActivityIso,
-  priorityMeta,
-  STATUS_META,
-} from "../../../lib/ticketDisplay";
+import { initials, priorityMeta, STATUS_META } from "../../../lib/ticketDisplay";
 import { inboxTitle, type InboxFilters } from "../../../lib/ticketInbox";
-import { getAssigneeId, getRequesterName, ticketLabel } from "../../../lib/tickets";
+import {
+  getAssigneeId,
+  getAssigneeName,
+  getRequesterName,
+  isEmailTicket,
+  ticketLabel,
+} from "../../../lib/tickets";
 import type { Ticket } from "../../../types/ticket.types";
 import type { PageSizeOption } from "../../../types/pagination.types";
 
@@ -33,9 +35,14 @@ interface InboxTicketListProps {
   onSelect: (ticketId: string) => void;
   onFiltersChange: (patch: Partial<InboxFilters>) => void;
   onRowClickNavigate?: (ticketId: string) => void;
+  /** Shows "Take this ticket" on unassigned, still-open rows. */
+  onTake?: (ticketId: string) => void;
+  takingId?: string | null;
   searchAction?: ReactNode;
   className?: string;
 }
+
+const TAKEABLE_STATUSES = new Set<Ticket["status"]>(["OPEN", "IN_PROGRESS", "WAITING_FOR_EMPLOYEE"]);
 
 export function InboxTicketList({
   tickets,
@@ -53,6 +60,8 @@ export function InboxTicketList({
   onSelect,
   onFiltersChange,
   onRowClickNavigate,
+  onTake,
+  takingId = null,
   searchAction,
   className = "w-full max-w-md shrink-0 border-r border-border xl:w-96",
 }: InboxTicketListProps) {
@@ -62,6 +71,14 @@ export function InboxTicketList({
       return;
     }
     onSelect(ticketId);
+  };
+
+  const handleRowKeyDown = (e: KeyboardEvent<HTMLDivElement>, ticketId: string) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleRowClick(ticketId);
+    }
   };
 
   const countLabel = totalCount ?? tickets.length;
@@ -119,16 +136,19 @@ export function InboxTicketList({
           const status = STATUS_META[ticket.status];
           const priority = priorityMeta(ticket.priority);
           const active = selectedId === ticket.id;
-          const activity = lastActivityIso(ticket);
           const assigneeId = getAssigneeId(ticket);
           const assignedToMe = !!currentTechnicianId && assigneeId === currentTechnicianId;
+          const canTake = !!onTake && !assigneeId && TAKEABLE_STATUSES.has(ticket.status);
+          const taking = takingId === ticket.id;
 
           return (
-            <button
+            <div
               key={ticket.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => handleRowClick(ticket.id)}
-              className={`flex w-full flex-col gap-1 border-b border-border px-3 py-3 text-left transition-colors hover:bg-muted/40 ${
+              onKeyDown={(e) => handleRowKeyDown(e, ticket.id)}
+              className={`flex w-full cursor-pointer flex-col gap-1 border-b border-border px-3 py-3 text-left outline-none transition-colors hover:bg-muted/40 focus-visible:bg-muted/60 ${
                 active ? "border-l-2 border-l-primary bg-primary/5" : "border-l-2 border-l-transparent"
               }`}
             >
@@ -143,9 +163,9 @@ export function InboxTicketList({
                     <span className="truncate text-xs font-medium text-muted-foreground">
                       {requester}
                     </span>
-                    {activity && (
+                    {ticket.createdAt && (
                       <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-                        {formatRelative(activity)}
+                        {formatRelative(ticket.createdAt)}
                       </span>
                     )}
                   </div>
@@ -164,21 +184,45 @@ export function InboxTicketList({
                 {ticket.ticketNumber !== undefined && (
                   <span className="text-[10px] text-muted-foreground">{ticketLabel(ticket)}</span>
                 )}
-                {assignedToMe && (
+                {isEmailTicket(ticket) && (
+                  <Badge variant="outline" className="h-4 gap-0.5 px-1.5 text-[9px]">
+                    <Mail className="size-2.5" />
+                    Email
+                  </Badge>
+                )}
+                {assignedToMe ? (
                   <Badge
                     variant="outline"
                     className="h-4 border-primary/30 bg-blue-50 px-1.5 text-[9px] text-blue-700"
                   >
                     Assigned to you
                   </Badge>
-                )}
-                {!assigneeId && ticket.status === "OPEN" && (
+                ) : assigneeId ? (
+                  <Badge variant="outline" className="h-4 max-w-[140px] truncate px-1.5 text-[9px]">
+                    {getAssigneeName(ticket) || "Assigned"}
+                  </Badge>
+                ) : (
                   <Badge variant="secondary" className="h-4 px-1.5 text-[9px]">
-                    Awaiting Technician
+                    Unassigned
                   </Badge>
                 )}
+                {canTake && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="ml-auto h-6 px-2 text-[11px]"
+                    disabled={!!takingId}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTake?.(ticket.id);
+                    }}
+                  >
+                    {taking && <Loader2 className="size-3 animate-spin" />}
+                    Take this ticket
+                  </Button>
+                )}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>

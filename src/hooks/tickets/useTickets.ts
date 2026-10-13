@@ -1,8 +1,12 @@
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { ticketService } from "../../services/ticket.service";
 import { queryKeys } from "../../lib/queryClient";
 import { usePagedQuery } from "../common/usePagedQuery";
-import type { TicketListParams, TicketStatus } from "../../types/ticket.types";
+import type {
+  TicketFilterParams,
+  TicketListParams,
+  TicketStatus,
+} from "../../types/ticket.types";
 import { ALL_TICKET_STATUSES } from "../../lib/ticketDisplay";
 import type { InboxCounts, InboxView } from "../../lib/ticketInbox";
 
@@ -19,6 +23,33 @@ export function useTicketList(
     page,
     limit,
     onEmptyPastEnd: options?.onEmptyPastEnd,
+  });
+}
+
+/** Technician home: every ticket in the system via `GET /tickets/all`. */
+export function useAllTicketList(
+  filters: TicketFilterParams,
+  page: number,
+  limit: number,
+  options?: { onEmptyPastEnd?: (totalPages: number) => void },
+) {
+  return usePagedQuery({
+    queryKey: queryKeys.tickets.everyList(filters as Record<string, unknown>),
+    queryFn: ({ page: p, limit: l, signal }) =>
+      ticketService.listAll({ ...filters, page: p, limit: l }, signal),
+    page,
+    limit,
+    onEmptyPastEnd: options?.onEmptyPastEnd,
+  });
+}
+
+/** Filter dialog numbers; only fetched while the dialog is open. */
+export function useAllTicketCounts(filters: TicketFilterParams, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.tickets.everyCounts(filters as Record<string, unknown>),
+    queryFn: ({ signal }) => ticketService.countsAll(filters, signal),
+    enabled,
+    staleTime: 15_000,
   });
 }
 

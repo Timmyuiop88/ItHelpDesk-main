@@ -10,6 +10,8 @@ export const ENDPOINTS = {
   },
   tickets: {
     base: "/api/v1/tickets",
+    all: "/api/v1/tickets/all",
+    allCounts: "/api/v1/tickets/all/counts",
     byId: (id: string) => `/api/v1/tickets/${id}`,
     assignmentHistory: (id: string) => `/api/v1/tickets/${id}/assignment-history`,
     comments: (id: string) => `/api/v1/tickets/${id}/comments`,

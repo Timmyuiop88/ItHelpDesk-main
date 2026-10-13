@@ -1,5 +1,11 @@
-import type { TicketListParams, TicketStatus } from "../types/ticket.types";
-import { ALL_TICKET_STATUSES } from "./ticketDisplay";
+import type {
+  TicketCounts,
+  TicketFilterParams,
+  TicketListParams,
+  TicketPriority,
+  TicketStatus,
+} from "../types/ticket.types";
+import { ALL_TICKET_PRIORITIES, ALL_TICKET_STATUSES, STATUS_META } from "./ticketDisplay";
 
 export type InboxView = "all" | "mine" | "unassigned";
 
@@ -33,13 +39,11 @@ export function activeFilterCount(filters: InboxFilters): number {
   return n;
 }
 
-export function toTicketListParams(
+export function toTicketFilterParams(
   filters: InboxFilters,
-  page: number,
-  limit: number,
   debouncedSearch: string,
-): TicketListParams {
-  const params: TicketListParams = { page, limit };
+): TicketFilterParams {
+  const params: TicketFilterParams = {};
   if (filters.view === "mine") params.assignedTo = "me";
   if (filters.view === "unassigned") params.assignedTo = "unassigned";
   if (filters.status) params.status = filters.status;
@@ -49,6 +53,31 @@ export function toTicketListParams(
   if (q) params.q = q;
   return params;
 }
+
+export function toTicketListParams(
+  filters: InboxFilters,
+  page: number,
+  limit: number,
+  debouncedSearch: string,
+): TicketListParams {
+  return { ...toTicketFilterParams(filters, debouncedSearch), page, limit };
+}
+
+const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+
+/** Number shown next to a filter option; `undefined` value = the "Any …" option. */
+export const countFor = {
+  view: (c: TicketCounts, view: InboxView) =>
+    view === "mine" ? c.assignment.me : view === "unassigned" ? c.assignment.unassigned : c.assignment.all,
+  status: (c: TicketCounts, status?: TicketStatus) =>
+    status ? c.status[status] ?? 0 : sum(Object.values(c.status)),
+  priority: (c: TicketCounts, priority?: string) =>
+    priority ? c.priority[priority as TicketPriority] ?? 0 : sum(Object.values(c.priority)),
+  category: (c: TicketCounts, id?: string) =>
+    id
+      ? (c.categories.find((x) => x.id === id)?.count ?? 0)
+      : sum(c.categories.map((x) => x.count)),
+};
 
 export function inboxFilterResetKey(filters: InboxFilters, debouncedSearch: string): string {
   return JSON.stringify({
@@ -76,7 +105,7 @@ export function inboxTitle(filters: InboxFilters): string {
   const count = activeFilterCount(filters);
   if (count === 0) return "All tickets";
   if (count === 1 && filters.view !== "all") return viewLabel(filters.view);
-  if (count === 1 && filters.status) return filters.status.replace(/_/g, " ");
+  if (count === 1 && filters.status) return STATUS_META[filters.status].label;
   return "Filtered tickets";
 }
 
@@ -88,12 +117,15 @@ export function parseInboxFilters(params: URLSearchParams): InboxFilters {
   const status = ALL_TICKET_STATUSES.includes(statusRaw as TicketStatus)
     ? (statusRaw as TicketStatus)
     : undefined;
-  const priority = params.get("priority") ?? undefined;
+  const priorityRaw = params.get("priority");
+  const priority = ALL_TICKET_PRIORITIES.includes(priorityRaw as TicketPriority)
+    ? (priorityRaw as TicketPriority)
+    : undefined;
   const categoryId = params.get("category") ?? undefined;
   return {
     view,
     status,
-    priority: priority || undefined,
+    priority,
     categoryId: categoryId || undefined,
     search: params.get("q") ?? "",
   };
