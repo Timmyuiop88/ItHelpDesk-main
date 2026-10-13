@@ -1,10 +1,11 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useApproveSession } from "../../hooks/remote-sessions/useApproveSession";
 import { useConsentSession } from "../../hooks/remote-sessions/useConsentSession";
 import { useDenySession } from "../../hooks/remote-sessions/useDenySession";
 import { useEmployeeSocket } from "../../hooks/useEmployeeSocket";
 import { getApiErrorMessage } from "../../lib/apiError";
+import { ensureRustdeskRunning } from "../../lib/remoteConnect";
 import type { Ticket } from "../../types/ticket.types";
 import { useDeviceAgentState } from "../DeviceAgentContext";
 
@@ -16,14 +17,21 @@ function useEmployeeRemoteState() {
   const agent = useDeviceAgentState();
   const { request, clearRequest, markApproved } = socket;
 
-  const pendingAction: "approve" | "deny" | null = approve.isPending
-    ? "approve"
-    : deny.isPending
-      ? "deny"
-      : null;
+  const [launching, setLaunching] = useState(false);
 
-  const allow = () => {
-    if (!request) return;
+  const pendingAction: "approve" | "deny" | null =
+    launching || approve.isPending
+      ? "approve"
+      : deny.isPending
+        ? "deny"
+        : null;
+
+  const allow = async () => {
+    if (!request || launching) return;
+    setLaunching(true);
+    const ready = await ensureRustdeskRunning();
+    setLaunching(false);
+    if (!ready) return;
     approve.mutate(request.sessionId, {
       onSuccess: () => {
         consent.mutate(request.sessionId, {

@@ -74,6 +74,109 @@ async fn get_rustdesk_id() -> Option<String> {
     .flatten()
 }
 
+const RUSTDESK_LAUNCH_TIMEOUT: Duration = Duration::from_secs(15);
+// The process appears before RustDesk has registered its URL handler and reached
+// the rendezvous server, so give it a moment before anything is sent to it.
+const RUSTDESK_SETTLE: Duration = Duration::from_millis(2500);
+
+#[cfg(target_os = "macos")]
+const RUSTDESK_BUNDLE_ID: &str = "com.carriez.rustdesk";
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+fn quiet_command(program: &str) -> Command {
+    #[allow(unused_mut)]
+    let mut command = Command::new(program);
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    command
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn rustdesk_running() -> bool {
+    quiet_command("pgrep")
+        .args(["-xi", "rustdesk"])
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "windows")]
+fn rustdesk_running() -> bool {
+    use std::os::windows::process::CommandExt;
+    Command::new("tasklist")
+        .args(["/FI", "IMAGENAME eq rustdesk.exe", "/NH"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .stderr(Stdio::null())
+        .output()
+        .map(|out| {
+            String::from_utf8_lossy(&out.stdout)
+                .to_ascii_lowercase()
+                .contains("rustdesk.exe")
+        })
+        .unwrap_or(false)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+fn rustdesk_running() -> bool {
+    false
+}
+
+#[cfg(target_os = "macos")]
+fn launch_rustdesk() -> bool {
+    let by_bundle = quiet_command("open")
+        .args(["-b", RUSTDESK_BUNDLE_ID])
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false);
+    by_bundle
+        || quiet_command("open")
+            .args(["-a", "RustDesk"])
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn launch_rustdesk() -> bool {
+    rustdesk_candidates()
+        .iter()
+        .filter(|program| {
+            !program.contains(std::path::MAIN_SEPARATOR) || std::path::Path::new(program).exists()
+        })
+        .any(|program| quiet_command(program).spawn().is_ok())
+}
+
+/// Starts RustDesk if it isn't running and waits until it is ready.
+/// Returns "running" (already open) or "launched"; errors with "not_installed" or "timeout".
+#[tauri::command]
+async fn ensure_rustdesk_running() -> Result<&'static str, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        if rustdesk_running() {
+            return Ok("running");
+        }
+        if !launch_rustdesk() {
+            return Err("not_installed".to_string());
+        }
+        let started = Instant::now();
+        while !rustdesk_running() {
+            if started.elapsed() > RUSTDESK_LAUNCH_TIMEOUT {
+                return Err("timeout".to_string());
+            }
+            std::thread::sleep(Duration::from_millis(250));
+        }
+        std::thread::sleep(RUSTDESK_SETTLE);
+        Ok("launched")
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 fn command_stdout(program: &str, args: &[&str]) -> Option<String> {
     let output = Command::new(program)
@@ -137,7 +240,11 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_rustdesk_id, get_machine_fingerprint])
+        .invoke_handler(tauri::generate_handler![
+            get_rustdesk_id,
+            get_machine_fingerprint,
+            ensure_rustdesk_running
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
