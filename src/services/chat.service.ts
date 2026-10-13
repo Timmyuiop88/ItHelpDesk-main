@@ -1,10 +1,11 @@
-import { apiGet, apiPatch, apiPost } from "../api/config";
+import { apiGet, apiPost } from "../api/config";
 import { ENDPOINTS } from "../api/endpoints";
 import { cleanParams } from "../lib/pagination";
 import type { CursorPage, Page } from "../types/pagination.types";
 import type {
   ChatConversation,
   ChatMessage,
+  CreateChatConversationPayload,
   SendChatMessagePayload,
 } from "../types/chat.types";
 
@@ -25,6 +26,11 @@ export const chatService = {
       cleanParams(params as Record<string, unknown>),
       { signal },
     ),
+  createConversation: (payload: CreateChatConversationPayload) =>
+    apiPost<ChatConversation, CreateChatConversationPayload>(
+      ENDPOINTS.chat.conversations,
+      payload,
+    ),
   getConversation: (id: string) =>
     apiGet<ChatConversation>(ENDPOINTS.chat.conversation(id)),
   listMessages: (
@@ -43,5 +49,5 @@ export const chatService = {
       payload,
     ),
   markRead: (conversationId: string) =>
-    apiPatch<void, Record<string, never>>(ENDPOINTS.chat.read(conversationId), {}),
+    apiPost<void, Record<string, never>>(ENDPOINTS.chat.read(conversationId), {}),
 };

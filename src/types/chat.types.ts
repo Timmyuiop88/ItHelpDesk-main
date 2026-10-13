@@ -43,6 +43,12 @@ export interface SendChatMessagePayload {
   body: string;
 }
 
+/** 1 participant and no title = direct chat (the existing one is returned if it exists). */
+export interface CreateChatConversationPayload {
+  participantUserIds: string[];
+  title?: string;
+}
+
 export interface ChatMessageEvent {
   conversationId: string;
   message: ChatMessage;

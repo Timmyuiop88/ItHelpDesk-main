@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { NewChatDialog } from "../../components/chat/NewChatDialog";
 import { Pagination } from "../../components/common/pagination/Pagination";
 import { infinitePropsFromPaged } from "../../components/common/pagination/paginationAdapters";
 import { RefreshButton } from "../../components/common/RefreshButton";
@@ -123,8 +124,18 @@ export function ChatPage() {
 
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-card">
         <aside className="flex w-64 shrink-0 flex-col border-r border-border">
-          <div className="border-b border-border px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {/* <div className="border-b border-border px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Conversations
+          </div> */}
+          <div className="flex items-center justify-between gap-2 border-b border-border py-1 pr-1.5 pl-3">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Conversations
+            </span>
+            <NewChatDialog
+              myId={myId}
+              myRole={me.data?.role}
+              onCreated={setSelectedId}
+            />
           </div>
           <div className="flex-1 overflow-y-auto">
             {conversations.isLoading && (
@@ -160,7 +171,7 @@ export function ChatPage() {
             {list.length === 0 && !conversations.isLoading && (
               <div className="flex flex-col items-center gap-2 p-6 text-center text-muted-foreground">
                 <MessageCircle className="size-8 opacity-40" />
-                <p className="text-xs">No conversations yet.</p>
+                <p className="text-xs">No conversations yet. Start one with the button above.</p>
               </div>
             )}
             <Pagination variant="infinite" {...infinitePropsFromPaged(conversations)} />

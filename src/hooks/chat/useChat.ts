@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../../lib/queryClient";
 import { chatService } from "../../services/chat.service";
-import type { SendChatMessagePayload } from "../../types/chat.types";
+import type {
+  CreateChatConversationPayload,
+  SendChatMessagePayload,
+} from "../../types/chat.types";
 import { usePagedInfiniteQuery } from "../common/usePagedInfiniteQuery";
 import { useCursorQuery } from "../common/useCursorQuery";
 
@@ -28,6 +31,19 @@ export function useChatMessages(conversationId: string | null) {
     limit: MESSAGE_PAGE_SIZE,
     enabled: !!conversationId,
     reverse: true,
+  });
+}
+
+export function useCreateChatConversation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateChatConversationPayload) =>
+      chatService.createConversation(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.chat.conversations({}),
+      });
+    },
   });
 }
 
