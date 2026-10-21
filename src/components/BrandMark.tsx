@@ -1,4 +1,4 @@
-import ecowasLogo from "../assets/ecowas-logo.png";
+import fincraLogo from "../assets/fincra-logo.jpg";
 
 interface BrandMarkProps {
   subtitle?: string;
@@ -18,8 +18,8 @@ export function BrandMark({
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       <img
-        src={ecowasLogo}
-        alt="ECOWAS seal"
+        src={fincraLogo}
+        alt="Fincra logo"
         className={`${logoClass} shrink-0 object-contain`}
       />
       {!collapsed && (
@@ -31,7 +31,7 @@ export function BrandMark({
                 : "text-sm font-bold tracking-tight text-primary"
             }
           >
-            ECOWAS
+            Fincra
           </p>
           <p
             className={

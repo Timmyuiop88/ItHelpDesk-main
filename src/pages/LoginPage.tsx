@@ -85,7 +85,7 @@ export function LoginPage() {
             subtitle="IT Support Desk"
             className="mb-2 flex-col items-center text-center"
           />
-          <CardTitle className="sr-only">ECOWAS IT Support Desk</CardTitle>
+          <CardTitle className="sr-only">Fincra IT Support Desk</CardTitle>
           <CardDescription>Sign in with your work account.</CardDescription>
         </CardHeader>
         <CardContent>

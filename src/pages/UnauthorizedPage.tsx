@@ -20,7 +20,7 @@ export function UnauthorizedPage() {
           <BrandMark className="mb-4" subtitle="IT Support Desk" />
           <CardTitle>Admin access not available here</CardTitle>
           <CardDescription>
-            Admin access is available on the web portal. ECOWAS IT Support on
+            Admin access is available on the web portal. Fincra IT Support on
             desktop supports employee and technician accounts only.
           </CardDescription>
         </CardHeader>
